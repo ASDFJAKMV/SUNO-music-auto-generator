@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>음악 프롬프트 생성 자동화</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#0e0d0b;}@keyframes spin{to{transform:rotate(360deg);}}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useRef}=React;
+const C={bg:"#0e0d0b",surface:"#161410",card:"#1c1a15",border:"#2a271f",gold:"#c9a84c",goldDim:"#9a7a30",text:"#e0d8c8",textDim:"#8a8070",accent:"#d4b96a"};
+const S={
+  root:{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14},
+  header:{display:"flex",alignItems:"center",padding:"0 0 0 16px",height:52,borderBottom:"1px solid "+C.border,background:"rgba(14,13,11,0.98)",position:"sticky",top:0,zIndex:10},
+  logo:{display:"flex",alignItems:"center",gap:8,flexShrink:0,marginRight:6},logoIcon:{fontSize:16,color:C.gold},logoText:{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap"},
+  hScroll:{display:"flex",alignItems:"center",gap:6,flex:1,minWidth:0,overflowX:"auto",padding:"0 12px",height:"100%"},
+  hBtn:{height:30,padding:"0 10px",background:"#1a180f",border:"1px solid "+C.border,borderRadius:6,color:C.textDim,fontSize:11,cursor:"pointer",fontWeight:500,display:"inline-flex",alignItems:"center",gap:4,whiteSpace:"nowrap",flexShrink:0},
+  hBtnOn:{height:30,padding:"0 10px",background:"rgba(201,168,76,0.15)",border:"1px solid "+C.gold,borderRadius:6,color:C.gold,fontSize:11,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center",gap:4,whiteSpace:"nowrap",flexShrink:0},
+  hDiv:{width:1,height:22,background:C.border,flexShrink:0,margin:"0 2px"},
+  tabBar:{display:"flex",overflowX:"auto",borderBottom:"1px solid "+C.border,background:C.surface,position:"sticky",top:52,zIndex:9},
+  tab:{flex:"1 1 0",display:"flex",flexDirection:"column",alignItems:"center",padding:"9px 4px",background:"transparent",border:"none",borderRight:"1px solid "+C.border,color:C.textDim,cursor:"pointer",minWidth:64},
+  tabOn:{flex:"1 1 0",display:"flex",flexDirection:"column",alignItems:"center",padding:"9px 4px",background:C.card,border:"none",borderRight:"1px solid "+C.border,borderBottom:"2px solid "+C.gold,color:C.gold,cursor:"pointer",minWidth:64},
+  tabNum:{fontSize:10,fontWeight:700,letterSpacing:"0.08em",marginBottom:2},tabLbl:{fontSize:11,fontWeight:500},
+  main:{maxWidth:900,margin:"0 auto",padding:"20px 16px"},
+  panelHead:{display:"flex",alignItems:"baseline",gap:10,marginBottom:18,borderBottom:"1px solid "+C.border,paddingBottom:10},
+  panelNum:{fontSize:10,fontWeight:700,color:C.goldDim,letterSpacing:"0.12em"},panelTitle:{fontSize:16,fontWeight:700,color:C.text},
+  stepBody:{display:"flex",flexDirection:"column",gap:14},
+  genreBox:{background:C.card,border:"1px solid "+C.border,borderRadius:12,padding:16,display:"flex",flexDirection:"column",gap:12},
+  gHeader:{display:"flex",alignItems:"center",gap:8},gNum:{fontSize:11,fontWeight:700,color:C.goldDim,minWidth:44},
+  gSelect:{flex:1,background:"#211f18",border:"1px solid "+C.border,borderRadius:6,color:C.text,padding:"7px 10px",fontSize:13,outline:"none",cursor:"pointer"},
+  removeBtn:{padding:"5px 9px",background:"transparent",border:"1px solid "+C.border,borderRadius:6,color:C.textDim,cursor:"pointer",fontSize:11},
+  resetBtn:{padding:"3px 8px",background:"transparent",border:"1px solid rgba(224,85,85,0.4)",borderRadius:5,color:"rgba(224,85,85,0.75)",cursor:"pointer",fontSize:10,fontWeight:600},
+  addBoxBtn:{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"13px",background:"transparent",border:"2px dashed "+C.border,borderRadius:12,color:C.textDim,cursor:"pointer",fontSize:13},
+  secLabel:{fontSize:10,fontWeight:700,color:C.goldDim,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:5},
+  catLabel:{fontSize:11,fontWeight:700,color:C.gold,marginTop:8,marginBottom:3,paddingBottom:2,borderBottom:"1px solid "+C.border},
+  subList:{display:"flex",flexDirection:"column",gap:2},
+  subItem:{display:"flex",alignItems:"flex-start",gap:7,cursor:"pointer",padding:"4px 8px",borderRadius:8,border:"1px solid transparent"},
+  subItemOn:{display:"flex",alignItems:"flex-start",gap:7,cursor:"pointer",padding:"4px 8px",borderRadius:8,border:"1px solid "+C.gold,background:"rgba(201,168,76,0.08)"},
+  subName:{fontSize:12,color:C.textDim,fontWeight:500,lineHeight:1.4,minWidth:130},subNameOn:{fontSize:12,color:C.gold,fontWeight:600,lineHeight:1.4,minWidth:130},
+  subDesc:{fontSize:11,color:"#6a6050",lineHeight:1.4},subDescOn:{fontSize:11,color:"#a08840",lineHeight:1.4},
+  chk:{accentColor:C.gold,cursor:"pointer",flexShrink:0,marginTop:2},cLbl:{fontSize:12,color:C.textDim},
+  miniInput:{background:"#211f18",border:"1px solid "+C.border,borderRadius:5,color:C.text,padding:"5px 8px",fontSize:12,outline:"none",flex:1,minWidth:0},
+  tagRow:{display:"flex",flexWrap:"wrap",gap:5},
+  tag:{padding:"4px 9px",background:"#211f18",border:"1px solid "+C.border,borderRadius:20,color:C.textDim,cursor:"pointer",fontSize:11,fontWeight:500},
+  tagOn:{padding:"4px 9px",background:"rgba(201,168,76,0.15)",border:"1px solid "+C.gold,borderRadius:20,color:C.gold,cursor:"pointer",fontSize:11,fontWeight:600},
+  tagConflict:{padding:"4px 9px",background:"rgba(224,85,85,0.06)",border:"1px solid rgba(224,85,85,0.3)",borderRadius:20,color:"#e05555",cursor:"not-allowed",fontSize:11,fontWeight:500,display:"inline-flex",alignItems:"center",gap:3},
+  slider:{width:"100%",accentColor:C.gold,cursor:"pointer"},
+  stepBtn:{width:26,height:26,background:"#211f18",border:"1px solid "+C.border,borderRadius:6,color:C.text,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0,lineHeight:1},
+  blockAdd:{padding:"5px 11px",background:"rgba(201,168,76,0.08)",border:"1px solid "+C.goldDim,borderRadius:20,color:C.accent,cursor:"grab",fontSize:11,fontWeight:600,userSelect:"none",display:"inline-flex",alignItems:"center",gap:4},
+  blockAddDis:{padding:"5px 11px",background:"#1a1810",border:"1px solid "+C.border,borderRadius:20,color:C.border,cursor:"not-allowed",fontSize:11,opacity:0.4,userSelect:"none"},
+  blockPill:{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 7px 4px 9px",background:"rgba(201,168,76,0.12)",border:"1px solid "+C.gold,borderRadius:20,cursor:"grab",userSelect:"none"},
+  blockX:{padding:"1px 4px",background:"transparent",border:"none",color:C.goldDim,cursor:"pointer",fontSize:10,lineHeight:1},
+  hintBox:{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:6,padding:"7px 10px",fontSize:12,color:C.accent,lineHeight:1.5},
+  card:{background:"#161410",border:"1px solid "+C.border,borderRadius:10,padding:14,display:"flex",flexDirection:"column",gap:10},
+  cardLbl:{fontSize:10,fontWeight:700,color:C.goldDim,letterSpacing:"0.1em",textTransform:"uppercase"},
+  rowGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14},
+  fieldGrp:{display:"flex",flexDirection:"column",gap:5},fieldLbl:{fontSize:12,fontWeight:600,color:C.textDim},
+  input:{background:"#211f18",border:"1px solid "+C.border,borderRadius:6,color:C.text,padding:"7px 10px",fontSize:13,outline:"none",width:"100%"},
+  textarea:{background:"#211f18",border:"1px solid "+C.border,borderRadius:6,color:C.text,padding:"10px",fontSize:13,outline:"none",width:"100%",resize:"vertical",fontFamily:"monospace",lineHeight:1.7},
+  primaryBtn:{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 18px",background:"linear-gradient(135deg,"+C.gold+","+C.goldDim+")",border:"none",borderRadius:8,color:"#0e0d0b",fontWeight:700,fontSize:13,cursor:"pointer"},
+  secondaryBtn:{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 13px",background:"transparent",border:"1px solid "+C.border,borderRadius:8,color:C.text,fontWeight:600,fontSize:12,cursor:"pointer"},
+  copyBtn:{padding:"4px 11px",background:"transparent",border:"1px solid "+C.border,borderRadius:6,color:C.textDim,fontSize:11,cursor:"pointer"},
+  errBox:{background:"rgba(224,85,85,0.1)",border:"1px solid rgba(224,85,85,0.3)",borderRadius:6,padding:"9px 12px",color:"#e05555",fontSize:13},
+  infoBox:{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.15)",borderRadius:6,padding:"9px 12px",fontSize:13,color:C.textDim},
+  warnBox:{background:"rgba(201,168,76,0.08)",border:"1px solid rgba(201,168,76,0.5)",borderRadius:6,padding:"9px 12px",fontSize:12,color:C.accent},
+  retryBox:{background:"rgba(201,168,76,0.06)",border:"1px solid rgba(201,168,76,0.3)",borderRadius:6,padding:"7px 10px",fontSize:12,color:C.accent},
+  titleBtn:{padding:"10px 13px",background:"#211f18",border:"1px solid "+C.border,borderRadius:8,color:C.text,cursor:"pointer",textAlign:"left",fontSize:13,fontWeight:500,width:"100%"},
+  titleBtnOn:{padding:"10px 13px",background:"rgba(201,168,76,0.1)",border:"1px solid "+C.gold,borderRadius:8,color:C.gold,cursor:"pointer",textAlign:"left",fontSize:13,fontWeight:600,width:"100%"},
+  selectedBadge:{padding:"8px 12px",background:"rgba(93,184,122,0.08)",border:"1px solid rgba(93,184,122,0.25)",borderRadius:6,fontSize:13,color:"#5db87a"},
+  aiBox:{borderTop:"1px solid "+C.border,paddingTop:10,marginTop:8},
+  groupLabel:{fontSize:11,fontWeight:700,color:C.gold,letterSpacing:"0.08em",marginBottom:5,marginTop:2,display:"flex",alignItems:"center",gap:5},
+  groupBadge:{fontSize:10,padding:"2px 6px",background:"rgba(201,168,76,0.15)",border:"1px solid "+C.goldDim,borderRadius:10,color:C.goldDim},
+  conceptChip:{padding:"4px 10px",background:"rgba(201,168,76,0.07)",border:"1px solid "+C.border,borderRadius:20,color:C.textDim,cursor:"pointer",fontSize:11,fontWeight:500,textAlign:"left",lineHeight:1.4},
+  conceptChipOn:{padding:"4px 10px",background:"rgba(201,168,76,0.15)",border:"1px solid "+C.gold,borderRadius:20,color:C.gold,cursor:"pointer",fontSize:11,fontWeight:600,textAlign:"left",lineHeight:1.4},
+  analysisBadge:{padding:"9px 12px",background:"rgba(93,184,122,0.07)",border:"1px solid rgba(93,184,122,0.2)",borderRadius:8,fontSize:12,color:"#7dcf9a",lineHeight:1.7},
+  settingsCard:{background:C.card,border:"1px solid "+C.gold,borderRadius:12,padding:16,display:"flex",flexDirection:"column",gap:12,marginBottom:20},
+};
+
+const GD={
+  Acoustic:[{name:"Acoustic Pop",desc:"어쿠스틱 악기로 편곡한 밝고 대중적인 팝"},{name:"Acoustic Ballad",desc:"어쿠스틱 악기 중심의 잔잔하고 감성적인 발라드"},{name:"Acoustic Folk",desc:"포크 감성과 어쿠스틱 악기를 결합한 장르"},{name:"Fingerstyle Guitar",desc:"기타 한 대로 멜로디와 반주를 동시에 표현"},{name:"Unplugged",desc:"전자음보다 실제 악기 연주 느낌을 강조"},{name:"Acoustic R&B",desc:"알앤비 멜로디를 어쿠스틱 악기 중심으로 편곡"},{name:"Acoustic Indie",desc:"소박하고 자연스러운 인디 감성의 어쿠스틱"},{name:"Guitar Vocal",desc:"기타 반주와 보컬 중심의 단순하고 감성적인 음악"}],
+  Ambient:[{name:"Dark Ambient",desc:"어둡고 긴장감 있는 공간감을 만드는 앰비언트"},{name:"Space Ambient",desc:"우주적이고 넓은 공간감을 강조한 앰비언트"},{name:"Drone Ambient",desc:"길게 지속되는 음과 미세한 변화 중심"},{name:"Meditation Ambient",desc:"명상과 휴식에 적합한 차분한 배경음악"},{name:"Nature Ambient",desc:"자연 소리와 부드러운 음악을 결합"},{name:"Piano Ambient",desc:"피아노와 공간감 있는 사운드 중심의 잔잔한 음악"},{name:"Cinematic Ambient",desc:"영화 배경음악처럼 분위기와 장면감을 강조"},{name:"New Age",desc:"치유, 명상, 휴식 분위기의 부드러운 연주 음악"},{name:"Sleep Music",desc:"수면용으로 자극을 낮춘 느리고 편안한 음악"}],
+  Ballad:[{name:"Pop Ballad",desc:"대중적인 멜로디와 감성적인 전개 중심 발라드"},{name:"Rock Ballad",desc:"밴드 사운드와 강한 감정 표현을 결합한 발라드"},{name:"R&B Ballad",desc:"알앤비 보컬과 감성적인 멜로디 중심 발라드"},{name:"Piano Ballad",desc:"피아노 반주를 중심으로 한 잔잔하고 감성적인 발라드"},{name:"Acoustic Ballad",desc:"어쿠스틱 기타나 피아노 중심의 담백한 발라드"},{name:"Orchestral Ballad",desc:"현악기와 오케스트라 편곡을 넣은 웅장한 발라드"},{name:"Power Ballad",desc:"후반부로 갈수록 강하게 터지는 극적인 발라드"},{name:"K-Drama Ballad",desc:"한국 드라마 삽입곡처럼 서정적이고 감정선이 강한 발라드"},{name:"Emotional Ballad",desc:"감정 표현과 멜로디를 우선하는 발라드"}],
+  BGM:[],
+  Blues:[{name:"Classic 12-Bar Blues",desc:"가장 기본적인 블루스 진행"},{name:"Delta Blues",desc:"원초적이고 거친 어쿠스틱 블루스"},{name:"Chicago Blues",desc:"일렉기타, 하모니카 중심의 도시형 블루스"},{name:"Electric Blues",desc:"전기 기타 톤과 솔로가 핵심"},{name:"Acoustic Blues",desc:"어쿠스틱 기타 중심의 소박한 블루스"},{name:"Slow Blues",desc:"느리고 감정적인 블루스"},{name:"Shuffle Blues",desc:"셔플 리듬이 강조된 블루스"},{name:"Blues Rock",desc:"블루스 기타와 록 에너지 결합"},{name:"Soul Blues",desc:"소울 보컬과 블루스 진행 결합"},{name:"Jazz Blues",desc:"재즈 화성, 스윙, 블루스 진행 결합"}],
+  "Bossa Nova":[{name:"Classic Bossa Nova",desc:"부드러운 기타 리듬과 재즈 화성을 결합한 전통 보사노바"},{name:"Jazz Bossa Nova",desc:"보사노바 리듬에 재즈 연주와 화성을 더한 장르"},{name:"Bossa Nova Pop",desc:"보사노바 리듬을 팝 멜로디와 결합"},{name:"Acoustic Bossa Nova",desc:"어쿠스틱 기타와 부드러운 보컬 중심 보사노바"},{name:"Bossa Nova Lounge",desc:"카페, 라운지에 어울리는 세련되고 편안한 보사노바"},{name:"Samba Bossa",desc:"삼바의 리듬감을 보사노바와 결합"},{name:"Vocal Bossa Nova",desc:"보컬 멜로디를 중심으로 한 부드러운 보사노바"}],
+  Cinematic:[{name:"Epic Orchestral",desc:"웅장한 오케스트라와 강한 타악기 중심"},{name:"Trailer Music",desc:"영화 예고편처럼 강한 긴장감과 빌드업"},{name:"Film Score",desc:"영화 장면을 뒷받침하는 서사적 배경음악"},{name:"Fantasy Soundtrack",desc:"판타지 세계관에 어울리는 신비롭고 웅장한 음악"},{name:"Drama Soundtrack",desc:"감정적인 장면에 어울리는 서정적인 배경음악"},{name:"Action Score",desc:"빠른 리듬과 긴장감을 강조한 액션 장면용 음악"},{name:"Emotional Piano Score",desc:"피아노 중심의 감성적인 영화음악 스타일"},{name:"Hybrid Orchestral",desc:"오케스트라와 전자음악 사운드를 결합한 현대적 장르"},{name:"Game Soundtrack",desc:"게임 배경음악처럼 반복성과 장면성을 함께 가진 음악"}],
+  Classical:[{name:"Piano Solo",desc:"피아노 한 대로 구성한 클래식 또는 클래식풍 연주곡"},{name:"String Quartet",desc:"바이올린, 비올라, 첼로 중심의 실내악"},{name:"Chamber Music",desc:"소규모 악기 편성으로 연주되는 클래식"},{name:"Symphonic",desc:"오케스트라 전체를 사용하는 규모감 있는 클래식"},{name:"Baroque",desc:"바흐, 비발디 시대처럼 장식적이고 규칙적인 양식"},{name:"Romantic Classical",desc:"감정 표현과 선율을 강조한 낭만주의 클래식"},{name:"Modern Classical",desc:"현대적인 화성과 미니멀한 구성을 포함한 클래식"},{name:"Opera",desc:"성악과 극적인 서사를 결합한 클래식"},{name:"Minimal Classical",desc:"단순한 패턴과 반복을 중심으로 한 현대 클래식"}],
+  Dance:[{name:"Dance Pop",desc:"팝 멜로디와 댄스 리듬을 결합한 가장 대중적인 댄스"},{name:"Club Dance",desc:"클럽에서 틀기 좋은 강한 비트와 반복적인 훅 중심"},{name:"Eurodance",desc:"90년대 유럽식 신스, 강한 비트, 중독적인 후렴 중심"},{name:"Disco Dance",desc:"디스코 리듬과 밝은 그루브를 기반으로 한 레트로 댄스"},{name:"Funk Dance",desc:"펑크 베이스와 리듬 기타를 활용한 그루브 중심 댄스"},{name:"Latin Dance",desc:"라틴 리듬과 퍼커션을 활용한 정열적인 댄스"},{name:"K-Pop Dance",desc:"아이돌 퍼포먼스, 강한 훅, 세련된 비트 중심 댄스"},{name:"Dancehall",desc:"자메이카 리듬 기반의 리듬감 강한 댄스"},{name:"Afrobeats Dance",desc:"아프리카 리듬과 팝 감각을 결합한 그루브한 댄스"},{name:"Hip-Hop Dance",desc:"힙합 비트와 퍼포먼스 중심 리듬을 결합한 댄스"},{name:"R&B Dance",desc:"알앤비 보컬 감성과 댄스 리듬을 섞은 댄스"},{name:"Synth Dance",desc:"신시사이저 리프와 전자적인 리듬을 강조한 댄스"},{name:"Tropical Dance",desc:"청량한 악기와 여름 분위기를 강조한 댄스"},{name:"Party Dance",desc:"파티, 축제에 어울리는 밝고 직관적인 댄스"},{name:"Retro Dance",desc:"80~90년대 감성을 재해석한 댄스"}],
+  Electronic:[{name:"Festival EDM",desc:"페스티벌 무대에 어울리는 강한 드롭과 고에너지 전자음악"},{name:"Future Bass",desc:"밝고 감성적인 신스 코드와 탄력 있는 드롭"},{name:"Dubstep",desc:"강한 베이스, 거친 전자음, 무거운 드롭 중심"},{name:"Drum and Bass",desc:"빠른 드럼 리듬과 강한 베이스를 가진 질주감 있는 전자음악"},{name:"Trap EDM",desc:"트랩 힙합 리듬에 전자음악 드롭을 결합"},{name:"Trance",desc:"반복적인 리듬과 몽환적인 빌드업을 가진 전자음악"},{name:"Techno",desc:"기계적이고 반복적인 비트 중심의 클럽 지향 전자음악"},{name:"Electro Pop",desc:"팝 멜로디와 전자음악 사운드를 결합한 대중적 장르"},{name:"Synthwave",desc:"80년대 레트로 신시사이저 감성을 현대적으로 재현"},{name:"UK Garage",desc:"끊어지는 듯한 리듬과 세련된 그루브를 가진 영국식 전자음악"},{name:"Eurobeat",desc:"이탈리아 기원의 초고속 전자음악 (BPM 140~160+)"}],
+  Folk:[{name:"Indie Folk",desc:"인디 감성과 포크 악기를 결합한 서정적인 장르"},{name:"Modern Folk",desc:"전통 포크를 현대적인 사운드로 재해석"},{name:"Folk Pop",desc:"포크의 어쿠스틱 감성과 팝 멜로디를 결합"},{name:"Folk Rock",desc:"포크 멜로디와 록 밴드 사운드를 결합"},{name:"Country Folk",desc:"컨트리 음악과 포크 감성을 섞은 장르"},{name:"Americana",desc:"미국 전통 음악, 컨트리, 포크, 블루스를 섞은 루트 음악"},{name:"Bluegrass",desc:"빠른 현악기 연주와 컨트리 감성이 강한 포크"},{name:"Acoustic Folk",desc:"어쿠스틱 기타 중심의 전통적이고 담백한 포크"},{name:"Celtic Folk",desc:"아일랜드, 스코틀랜드 계열의 민속적 선율을 가진 포크"}],
+  Funk:[{name:"Classic Funk",desc:"베이스와 리듬 기타를 중심으로 한 전통적인 펑크"},{name:"Disco Funk",desc:"디스코 리듬과 펑크 그루브를 결합한 신나는 장르"},{name:"Electro Funk",desc:"전자악기와 펑크 리듬을 결합한 장르"},{name:"Jazz Funk",desc:"재즈 화성과 펑크 리듬을 섞은 연주 중심 장르"},{name:"P-Funk",desc:"독특하고 과장된 베이스와 사이키델릭한 펑크"},{name:"Boogie",desc:"디스코 이후 등장한 부드럽고 댄서블한 펑크 계열"},{name:"Funk Pop",desc:"팝 멜로디에 펑크 리듬을 더한 대중적인 장르"},{name:"Funk Rock",desc:"록 기타와 펑크 리듬을 결합한 강한 그루브"},{name:"Nu-Disco",desc:"디스코와 펑크를 현대적으로 재해석한 세련된 댄스"}],
+  "Groove Pop":[{name:"Funk Pop",desc:"팝 멜로디에 펑크 리듬을 더한 그루브 중심 팝"},{name:"Dance Groove",desc:"댄서블한 비트와 팝 멜로디를 결합한 그루브 팝"},{name:"Smooth Groove",desc:"부드럽고 세련된 그루브를 강조한 팝"},{name:"Retro Groove",desc:"70~80년대 디스코/펑크 감성을 현대적으로 재해석한 팝"},{name:"Chill Groove",desc:"편안하고 리드미컬한 분위기의 로파이 그루브 팝"}],
+  "Hip-Hop":[{name:"Boom Bap",desc:"묵직한 드럼과 샘플링 중심의 올드스쿨 힙합"},{name:"Trap",desc:"빠른 하이햇, 강한 베이스, 어두운 분위기의 힙합"},{name:"Lo-fi Hip-Hop",desc:"편안하고 빈티지한 질감의 비트를 가진 힙합"},{name:"Jazz Rap",desc:"재즈 샘플과 힙합 비트를 결합한 부드러운 랩"},{name:"Melodic Rap",desc:"랩과 노래의 중간 형태로 멜로디를 강조한 힙합"},{name:"Drill",desc:"차갑고 공격적인 비트를 특징으로 한 현대 힙합"},{name:"Old School Hip-Hop",desc:"초기 힙합 스타일을 기반으로 한 단순하고 리듬감 있는 장르"},{name:"Cloud Rap",desc:"몽환적이고 흐릿한 분위기의 힙합"},{name:"Pop Rap",desc:"팝적인 후렴과 랩을 결합한 대중적인 힙합"}],
+  House:[{name:"Deep House",desc:"깊고 세련된 베이스와 차분한 클럽 그루브를 가진 하우스"},{name:"Tropical House",desc:"청량한 멜로디와 여름 휴양지 느낌을 강조한 하우스"},{name:"Progressive House",desc:"감정적인 빌드업과 웅장한 전개를 가진 하우스"},{name:"Tech House",desc:"테크노의 반복성과 하우스의 그루브를 결합한 클럽 음악"},{name:"Funky House",desc:"펑크 리듬과 밝은 그루브를 강조한 신나는 하우스"},{name:"Piano House",desc:"피아노 리프를 중심으로 한 경쾌하고 대중적인 하우스"},{name:"French House",desc:"디스코와 펑크 질감을 섞은 세련된 프랑스식 하우스"},{name:"Slap House",desc:"강한 베이스와 현대적인 팝 감각을 섞은 하우스"},{name:"Chill House",desc:"편안하고 가벼운 분위기의 라운지형 하우스"},{name:"Afro House",desc:"아프리카 리듬과 하우스 비트를 결합한 세련된 장르"}],
+  Indie:[{name:"Indie Pop",desc:"가볍고 감성적인 멜로디 중심의 인디 팝"},{name:"Indie Rock",desc:"밴드 사운드와 독립적인 감성을 중심으로 한 인디 록"},{name:"Indie Folk",desc:"어쿠스틱 악기와 서정적인 감성이 강한 인디 포크"},{name:"Bedroom Pop",desc:"방에서 만든 듯한 소박하고 개인적인 질감의 팝"},{name:"Dream Pop",desc:"몽환적이고 부드러운 사운드를 특징으로 한 인디 팝"},{name:"Alternative Pop",desc:"일반 팝보다 개성 있고 색다른 편곡을 넣은 팝"},{name:"Alternative Rock",desc:"기존 록보다 실험적이고 개성 있는 밴드 음악"},{name:"Lo-fi Indie",desc:"빈티지하고 거친 질감을 강조한 인디 음악"},{name:"Shoegaze",desc:"기타 노이즈와 몽환적인 사운드를 벽처럼 쌓은 장르"}],
+  Jazz:[{name:"Smooth Jazz",desc:"부드럽고 세련된 분위기의 듣기 쉬운 재즈"},{name:"Swing Jazz",desc:"경쾌한 스윙 리듬을 중심으로 한 전통 재즈"},{name:"Bebop",desc:"빠른 연주와 복잡한 화성을 특징으로 한 연주 중심 재즈"},{name:"Cool Jazz",desc:"차분하고 절제된 분위기의 세련된 재즈"},{name:"Modal Jazz",desc:"코드 진행보다 선법과 분위기를 중시하는 재즈"},{name:"Jazz Fusion",desc:"재즈에 록, 펑크, 전자음악 요소를 섞은 장르"},{name:"Vocal Jazz",desc:"보컬을 중심으로 한 재즈 스타일"},{name:"Piano Jazz",desc:"피아노 연주를 중심으로 한 재즈"},{name:"Latin Jazz",desc:"라틴 리듬과 재즈 화성을 결합한 장르"}],
+  "K-POP":[{name:"K-Pop Dance Pop",desc:"가장 표준적인 현대 케이팝 댄스곡"},{name:"K-Pop Girl Group Pop",desc:"청량함, 세련됨, 후킹되는 보컬 중심"},{name:"K-Pop Boy Group Performance Pop",desc:"강한 퍼포먼스, 랩, 드럼, 무대감"},{name:"K-Pop Ballad / Vocal Pop",desc:"보컬 감정선 중심의 케이팝 발라드"},{name:"K-Pop R&B",desc:"부드러운 코드, 보컬 하모니, 세련된 그루브"},{name:"K-Pop Hip-Hop / Trap Pop",desc:"랩 벌스, 808 베이스, 트랩 하이햇"},{name:"K-Pop EDM Pop",desc:"빌드업, 드롭, 강한 신스"},{name:"K-Pop House",desc:"4/4 킥과 세련된 클럽 그루브"},{name:"K-Pop UK Garage / 2-Step",desc:"스킵감 있는 드럼, 가볍고 세련된 리듬"},{name:"K-Pop Jersey Club",desc:"바운시한 킥 패턴, 짧고 중독적인 클럽 리듬"},{name:"K-Pop Drum and Bass / Breakbeat Pop",desc:"빠른 브레이크비트, 속도감 있는 리듬"},{name:"K-Pop Synthpop",desc:"신스 리드, 패드, 세련된 전자 팝"},{name:"K-Pop Hyperpop / Glitch Pop",desc:"과장된 신스, 튀는 사운드, 변칙적 질감"},{name:"K-Pop Afrobeat / Amapiano",desc:"아프로 리듬, 로그드럼, 여유로운 댄스 그루브"},{name:"K-Pop Pop Rock / Band Pop",desc:"밴드 사운드와 케이팝 멜로디 결합"}],
+  Latin:[{name:"Reggaeton",desc:"반복적인 라틴 리듬과 강한 비트를 가진 댄스"},{name:"Salsa",desc:"빠르고 화려한 라틴 리듬을 중심으로 한 춤 음악"},{name:"Bachata",desc:"기타 리듬과 로맨틱한 분위기를 가진 라틴 음악"},{name:"Merengue",desc:"빠르고 경쾌한 리듬을 특징으로 한 라틴 댄스"},{name:"Latin Pop",desc:"라틴 리듬과 대중적인 팝 멜로디를 결합한 장르"},{name:"Latin Jazz",desc:"라틴 리듬과 재즈 화성을 결합한 연주 중심 장르"},{name:"Latin House",desc:"라틴 퍼커션과 하우스 비트를 결합한 클럽 음악"},{name:"Samba",desc:"브라질 특유의 경쾌하고 리드미컬한 음악"},{name:"Rumba",desc:"느리고 감성적인 라틴 리듬을 중심으로 한 장르"}],
+  "Lo-fi":[{name:"Lo-fi Hip-Hop",desc:"공부, 휴식, 배경음악에 어울리는 편안한 힙합 비트"},{name:"Lo-fi Jazz",desc:"재즈 코드와 빈티지한 질감을 섞은 차분한 로파이"},{name:"Lo-fi Chill",desc:"편안한 분위기를 중심으로 한 로파이"},{name:"Lo-fi R&B",desc:"부드러운 알앤비 감성과 로파이 질감을 결합"},{name:"Lo-fi House",desc:"하우스 리듬을 부드럽고 낮은 자극으로 만든 로파이"},{name:"Lo-fi Piano",desc:"피아노 중심의 잔잔하고 감성적인 로파이"},{name:"Lo-fi Ambient",desc:"공간감과 편안한 질감을 강조한 배경음악형 로파이"},{name:"Bedroom Lo-fi",desc:"집에서 만든 듯한 소박하고 개인적인 감성의 로파이"}],
+  Pop:[{name:"Dance Pop",desc:"댄스 리듬과 대중적인 멜로디를 결합한 밝고 신나는 팝"},{name:"Synth Pop",desc:"신시사이저 사운드를 중심으로 한 전자적인 팝"},{name:"Electro Pop",desc:"팝 멜로디에 전자음악 비트와 사운드를 강하게 섞은 팝"},{name:"City Pop",desc:"도시적이고 세련된 레트로 감성의 팝"},{name:"Indie Pop",desc:"가볍고 개성 있는 감성의 인디 기반 팝"},{name:"Dream Pop",desc:"몽환적인 사운드와 부드러운 분위기를 강조한 팝"},{name:"Retro Pop",desc:"과거 시대의 사운드를 현대적으로 재해석한 팝"},{name:"Teen Pop",desc:"밝고 직관적인 멜로디를 가진 젊은 감성의 팝"},{name:"Power Pop",desc:"강한 후렴과 기타 사운드를 강조한 경쾌한 팝"},{name:"K-Pop Style Pop",desc:"한국 아이돌 음악처럼 선명한 훅과 세련된 편곡의 팝"},{name:"J-Pop Style Pop",desc:"일본 대중음악 특유의 선율감과 밝은 편곡을 가진 팝"},{name:"Bedroom Pop",desc:"집에서 만든 듯한 소박하고 개인적인 질감의 팝"},{name:"Soft Pop",desc:"자극이 적고 부드러운 멜로디 중심의 편안한 팝"},{name:"Pop Rock",desc:"록 악기 편성과 대중적인 팝 멜로디를 결합한 장르"},{name:"Pop Ballad",desc:"팝 멜로디와 감성적인 발라드 전개를 결합"},{name:"R&B Pop",desc:"알앤비 보컬 감성과 팝 구조를 결합한 장르"},{name:"Funk Pop",desc:"펑크 리듬과 팝 멜로디를 결합한 그루브 중심 팝"},{name:"Disco Pop",desc:"디스코 리듬과 팝 멜로디를 결합한 밝고 댄서블한 팝"},{name:"Tropical Pop",desc:"청량한 악기와 여름 분위기를 강조한 팝"},{name:"Latin Pop",desc:"라틴 리듬과 대중적인 팝 멜로디를 결합한 장르"},{name:"Acoustic Pop",desc:"어쿠스틱 악기 중심으로 편곡한 밝고 담백한 팝"},{name:"Folk Pop",desc:"포크의 어쿠스틱 감성과 팝 멜로디를 결합"},{name:"Chamber Pop",desc:"현악기, 피아노 등 섬세한 편곡을 넣은 우아한 팝"},{name:"Art Pop",desc:"실험적 편곡과 예술적 감각을 강조한 팝"},{name:"Alternative Pop",desc:"일반 팝보다 개성 있고 색다른 사운드를 가진 팝"},{name:"Hyperpop",desc:"과장된 전자음, 빠른 전개, 디지털 질감을 강조한 팝"},{name:"Bubblegum Pop",desc:"단순하고 달콤한 멜로디를 강조한 밝은 팝"},{name:"Europop",desc:"유럽식 댄스 감성과 팝 멜로디를 결합한 장르"},{name:"Britpop",desc:"영국 밴드 사운드와 팝 멜로디를 결합한 장르"}],
+  "R&B":[{name:"Contemporary R&B",desc:"현대적인 비트와 부드러운 보컬을 중심으로 한 알앤비"},{name:"Neo Soul",desc:"소울, 재즈, 알앤비를 섞은 깊고 따뜻한 감성의 장르"},{name:"Alternative R&B",desc:"전통적인 알앤비보다 실험적이고 어두운 분위기"},{name:"Quiet Storm",desc:"부드럽고 로맨틱한 분위기의 느린 알앤비"},{name:"Funk R&B",desc:"펑크 리듬과 알앤비 보컬을 결합한 그루브 중심 장르"},{name:"Soul Ballad",desc:"소울풀한 보컬과 감성적인 발라드 구성을 결합"},{name:"PBR&B",desc:"전자음악, 인디, 알앤비 감성을 섞은 현대적 알앤비"},{name:"Gospel R&B",desc:"가스펠식 보컬과 알앤비 사운드를 결합한 장르"},{name:"Smooth R&B",desc:"매끄럽고 편안한 분위기의 감성적인 알앤비"}],
+  Reggae:[{name:"Roots Reggae",desc:"전통적인 레게 리듬과 메시지성을 강조한 장르"},{name:"Dub Reggae",desc:"에코, 리버브, 베이스를 강조한 실험적인 레게"},{name:"Dancehall",desc:"레게보다 더 빠르고 리듬감이 강한 댄스 음악"},{name:"Reggae Pop",desc:"레게 리듬과 팝 멜로디를 결합한 대중적인 장르"},{name:"Lovers Rock",desc:"부드럽고 로맨틱한 분위기의 레게"},{name:"Ska",desc:"빠른 오프비트 리듬을 특징으로 한 레게의 초기 계열"},{name:"Rocksteady",desc:"스카보다 느리고 부드러운 리듬의 자메이카 음악"},{name:"Reggae Fusion",desc:"레게에 팝, 힙합, 알앤비 등을 섞은 혼합 장르"}],
+  Rock:[{name:"Pop Rock",desc:"록 사운드에 대중적인 멜로디를 결합한 접근성 높은 장르"},{name:"Alternative Rock",desc:"전통적인 록보다 개성 있고 실험적인 밴드 사운드"},{name:"Indie Rock",desc:"독립적이고 감성적인 밴드 사운드를 중심으로 한 록"},{name:"Classic Rock",desc:"60~80년대 록 스타일을 기반으로 한 전통적인 록"},{name:"Soft Rock",desc:"강한 록보다 부드럽고 듣기 편한 밴드 음악"},{name:"Hard Rock",desc:"강한 기타 리프와 드럼을 강조한 에너지 있는 록"},{name:"Garage Rock",desc:"거칠고 날것 같은 밴드 사운드를 특징으로 한 록"},{name:"Psychedelic Rock",desc:"몽환적이고 환각적인 사운드를 강조한 록"},{name:"Rock Ballad",desc:"록 악기 편성에 감성적인 발라드 멜로디를 섞은 장르"}],
+  World:[{name:"Afrobeat",desc:"아프리카 리듬, 펑크, 재즈를 결합한 그루브 중심 음악"},{name:"Afropop",desc:"아프리카 리듬과 현대 팝 감성을 결합한 대중음악"},{name:"Middle Eastern",desc:"중동 특유의 선율과 타악기 리듬을 활용한 음악"},{name:"Indian Fusion",desc:"인도 음악의 리듬과 선율을 현대 장르와 결합"},{name:"Korean Traditional Fusion",desc:"국악 요소를 팝, 재즈, 전자음악 등과 결합한 장르"},{name:"Japanese Traditional Fusion",desc:"일본 전통 악기와 현대 음악을 섞은 장르"},{name:"Celtic",desc:"아일랜드, 스코틀랜드 계열의 민속 선율을 중심으로 한 음악"},{name:"Flamenco",desc:"스페인 기타, 박수 리듬, 강한 감정 표현을 가진 음악"},{name:"Caribbean",desc:"카리브해 지역의 밝고 리듬감 있는 음악을 포괄하는 장르"}],
+};
+const BGM_UC={"A. 유튜브 영상용":[{name:"YouTube Longform BGM",desc:"유튜브 롱폼 영상 전체에 깔기 좋은 배경음"},{name:"YouTube Shorts BGM",desc:"짧은 영상에서 초반 몰입감을 빠르게 만드는 배경음"},{name:"YouTube Intro BGM",desc:"영상 시작부, 채널 오프닝에 쓰는 짧은 배경음"},{name:"YouTube Outro BGM",desc:"영상 마무리, 엔딩 화면에 쓰는 배경음"},{name:"Vlog BGM",desc:"일상, 여행, 기록형 영상에 자연스럽게 깔리는 배경음"},{name:"Tutorial BGM",desc:"강의, 설명 영상에 방해되지 않는 배경음"}],"B. 숏폼 / SNS용":[{name:"Instagram Reels BGM",desc:"인스타 릴스에 맞는 짧고 감각적인 배경음"},{name:"TikTok Style BGM",desc:"틱톡식 반복 구간과 강한 훅의 숏폼 배경음"},{name:"Shorts Hook BGM",desc:"영상 첫 3초 집중도를 높이는 강한 배경음"}],"C. 말 중심 콘텐츠용":[{name:"Podcast BGM",desc:"팟캐스트 오프닝, 대화 배경에 쓰는 음악"},{name:"Radio BGM",desc:"라디오형 콘텐츠에서 말소리를 받쳐주는 배경음"},{name:"Storytelling BGM",desc:"사연, 드라마형 콘텐츠에 쓰는 감정선 중심 배경음"},{name:"Narration BGM",desc:"내레이션, 다큐식 말하기에 어울리는 배경음"}],"D. 집중 / 루프용":[{name:"Study BGM",desc:"공부, 독서, 집중용으로 반복 재생하기 좋은 배경음"},{name:"Work BGM",desc:"업무, 코딩, 문서 작성에 어울리는 배경음"},{name:"Meditation BGM",desc:"명상, 호흡, 안정 콘텐츠에 어울리는 배경음"},{name:"Loop BGM",desc:"반복 재생해도 끊김이 없는 루프형 배경음"},{name:"Livestream BGM",desc:"라이브 방송 대기, 진행 중 배경으로 쓰기 좋은 음악"}]};
+const BGM_AT=["Bright","Calm","Emotional","Suspense","Luxury","Mysterious","Epic","Playful","Tense","Melancholic","Uplifting","Romantic","Dark","Neutral"];
+const BGM_ST=["Lo-fi","Jazz","Groove Pop","8-bit","Piano","Cinematic","Orchestral","Electronic","Acoustic","Ambient","Hip-Hop","Rock","Classical","Funk","Synthwave","Latin"];
+const BGM_LN=["5초","10초","15초","30초","60초","2분","3분"];
+const BGM_LP=["No Loop","Seamless Loop","Loopable Ending"];
+const GL=Object.keys(GD).sort();
+const MOODS=["Bright","Dark","Warm","Chill","Dreamy","Energetic","Uplifting","Melancholic","Romantic","Nostalgic","Sophisticated","Mysterious","Playful","Hopeful","Bittersweet","Emotional","Elegant","Urban","Cinematic","Ethereal","Cozy","Confident","Tense","Sexy","Retro"];
+const RHYTHMS=["Groovy","Steady Beat","Syncopated","Bouncy","Driving","Punchy","Swinging","Flowing","Minimal","Funky","Danceable","Four-on-the-floor","Half-time","Double-time","Off-beat","Shuffling","Rolling","Pulsing","Percussive","Stomping","Chopped","Stuttered","Glitchy","Laid-back","Tight"];
+const RC={"Driving":["Laid-back"],"Laid-back":["Driving"],"Half-time":["Double-time","Four-on-the-floor"],"Double-time":["Half-time"],"Four-on-the-floor":["Half-time"],"Flowing":["Chopped","Stuttered","Glitchy"],"Chopped":["Flowing"],"Stuttered":["Flowing","Steady Beat"],"Glitchy":["Flowing","Steady Beat"],"Steady Beat":["Glitchy","Stuttered"],"Bouncy":["Stomping"],"Stomping":["Bouncy","Minimal"],"Minimal":["Stomping"]};
+const getCf=(sel)=>{const s=new Set();sel.forEach(r=>(RC[r]||[]).forEach(c=>s.add(c)));return s;};
+const BT=["Intro","Verse","Pre-Chorus","Chorus","Bridge","Outro"];
+const ST=new Set(["Intro","Outro"]);
+const AP=["late afternoon light","rainy window","candlelit evening","morning mist","golden hour","city lights at night","foggy evening","early spring breeze"];
+const IP=["muted trumpet","breathy flute","warm upright bass","subtle Rhodes piano","airy harmonica","fingerpicked acoustic guitar","delicate pizzicato strings"];
+const HP=["memorable hook","catchy chorus","earworm melody","strong melodic motif","singable lead melody","emotionally resonant"];
+const LL=["한국어 전용","한국어 중심·영어 키워드 혼입","한·영 병기","한·영 혼합","영어 중심·한국어 키워드 혼입","영어 전용"];
+const LP=["Write entirely in Korean.","Write primarily in Korean, embedding occasional English keywords.","Alternate paragraphs: English then Korean per section.","Freely mix English and Korean within sentences.","Write primarily in English, embedding occasional Korean keywords.","Write entirely in English."];
+const TLL=["한국어 전용","한·영 병기","영어 전용"];
+const TLP=["Generate ALL 10 titles in Korean only.","Generate Group A in Korean, Group B in English.","Generate ALL 10 titles in English only."];
+const TS=["4/4","3/4","6/8"];
+const INST=["Drums","Percussion","Bass","Acoustic Guitar","Electric Guitar","Piano","Electric Piano","Rhodes","Organ","Synth Lead","Synth Pad","Synth Bass","Strings","Violin","Cello","Brass","Saxophone","Trumpet","Flute","Harmonica","Choir","Vocal Chops","FX","가야금"];
+const ATT=["Full Mix","Vocal","Guitar","Bass","Drums","Keys / Piano","Synth","Strings","Hook / Riff","Other"];
+const LPR=[{label:"800자",chars:800},{label:"1000자",chars:1000},{label:"1200자",chars:1200},{label:"1400자",chars:1400},{label:"1600자",chars:1600}];
+const GNK=["도","도#","레","레#","미","파","파#","솔","솔#","라","라#","시"];
+const GOL=[-2,-1,0,1,2,3,4];
+const WN=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const GAYO=(()=>{const k=[];for(let o=0;o<GOL.length;o++)for(let n=0;n<GNK.length;n++)k.push({label:GOL[o]+"옥"+GNK[n],western:WN[n]+(GOL[o]+3)});return k;})();
+const GC=36;
+const fmtC=(v)=>v===0?"설정 안 함":v+"자";
+const fmtLen=(s)=>{if(s===0)return"설정 안 함";const m=Math.floor(s/60),sec=s%60;return sec>0?`${m}분 ${sec}초`:`${m}분`;};
+const calcSC=(s)=>Math.max(3,Math.min(10,Math.round(s/30)));
+const pick=(arr,n)=>[...arr].sort(()=>Math.random()-.5).slice(0,n);
+const trimP=(t)=>{if(t.length<=999)return t;const c=t.lastIndexOf(',',999);return c>0?t.slice(0,c):t.slice(0,999);};
+const getLyricHint=(c)=>{if(c===0)return"AI가 자유롭게 작성";if(c<=900)return"짧은 곡 — 발라드, 간결한 팝";if(c<=1100)return"표준 길이 — 일반적인 팝/발라드";if(c<=1300)return"약간 긴 곡 — 브릿지 포함 팝";if(c<=1500)return"긴 곡 — 여러 절과 브릿지 포함";return"매우 긴 곡 — 랩/서사 스타일";};
+const getBoxStr=(b)=>{if(b.genre==='BGM'){const p=[];if(b.bgmUsage&&b.bgmUsage.length)p.push("Usage:"+b.bgmUsage.slice(0,3).join(','));if(b.bgmStyles&&b.bgmStyles.length)p.push("Style:"+b.bgmStyles.join(','));return "BGM("+p.join(';')+")";}const sc=b.scale?" ["+b.scale+"]":"";const subs=(b.subgenres||[]).filter(x=>x!=="__none__");if(b.customSub)subs.push(b.customSub);return subs.length?b.genre+sc+"("+subs.join(",")+")" :b.genre+sc;};
+const allocSec=(blocks,total)=>{if(!total)return null;const W={Intro:0.5,Verse:2.5,"Pre-Chorus":1.2,Chorus:2.5,Bridge:1.8,Outro:0.5};const tw=blocks.reduce((s,b)=>s+(W[b.type]||1.5),0);const cnts={},idx={};blocks.forEach(b=>{cnts[b.type]=(cnts[b.type]||0)+1;});return blocks.map(b=>{idx[b.type]=(idx[b.type]||0)+1;const lbl=cnts[b.type]>1?`${b.type} ${idx[b.type]}`:b.type;return{lbl,chars:Math.round((W[b.type]||1.5)/tw*total)};});};
+let _buid=0;
+const mkBlock=(t)=>({uid:"b"+(++_buid),type:t});
+const makeBox=(g)=>({id:Math.random().toString(36).slice(2),genre:g||"Jazz",subgenres:[],moods:[],rhythms:[],scale:"",timeSig:"4/4",customSub:"",customMood:"",customRhythm:"",bgmUsage:[],bgmAtmos:[],bgmStyles:[],bgmLength:"",bgmLoop:""});
+const makeInitBlocks=()=>[mkBlock("Intro"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Bridge"),mkBlock("Chorus"),mkBlock("Outro")];
+
+const analyzeAudioFile=async(file)=>{
+  const AB=await file.arrayBuffer();
+  const ctx=new(window.AudioContext||window.webkitAudioContext)();
+  let buf;try{buf=await ctx.decodeAudioData(AB);}catch(e){await ctx.close();throw new Error("디코딩 실패 — MP3, WAV를 권장합니다.");}
+  const ch=buf.getChannelData(0),sr=buf.sampleRate,dur=buf.duration,mxL=Math.min(ch.length,sr*30);
+  let sq=0,pk=0;for(let i=0;i<mxL;i++){sq+=ch[i]*ch[i];if(Math.abs(ch[i])>pk)pk=Math.abs(ch[i]);}
+  const rms=Math.sqrt(sq/mxL),wSz=Math.floor(sr*0.1),en=[];
+  for(let i=0;i+wSz<mxL;i+=wSz){let e=0;for(let j=0;j<wSz;j++)e+=ch[i+j]*ch[i+j];en.push(e/wSz);}
+  const avgE=en.reduce((a,b)=>a+b,0)/en.length,peaks=[];
+  for(let i=2;i<en.length-2;i++){if(en[i]>en[i-1]&&en[i]>en[i-2]&&en[i]>en[i+1]&&en[i]>en[i+2]&&en[i]>avgE*1.7){if(!peaks.length||i-peaks[peaks.length-1]>3)peaks.push(i);}}
+  let bpm=120;if(peaks.length>3){const iv=[];for(let i=1;i<peaks.length;i++)iv.push((peaks[i]-peaks[i-1])*0.1);iv.sort((a,b)=>a-b);const med=iv[Math.floor(iv.length/2)];if(med>0){bpm=Math.round(60/med);while(bpm<60)bpm*=2;while(bpm>200)bpm/=2;}}
+  let zcr=0;const zL=Math.min(mxL,sr*10);for(let i=1;i<zL;i++)if((ch[i]>=0)!==(ch[i-1]>=0))zcr++;
+  const zR=zcr/zL*sr,dr=pk>0?Math.round(20*Math.log10(pk/(rms+0.0001))):0;
+  await ctx.close();
+  const eD=rms<0.04?"very soft":rms<0.12?"gentle":rms<0.22?"moderate energy":"high energy";
+  const bD=zR<1500?"warm, bass-heavy":zR<4000?"balanced":zR<8000?"bright, mid-forward":"very bright";
+  const bpD=bpm<75?"slow ballad":bpm<95?"relaxed":bpm<115?"moderate":bpm<135?"upbeat":"fast/energetic";
+  const dD=dr<6?"heavily compressed":dr<12?"moderately compressed":dr<18?"natural dynamic":"wide dynamic";
+  return{duration:Math.round(dur),bpm,bpmDesc:bpD,energyDesc:eD,brightnessDesc:bD,dynamicsDesc:dD,summary:"~"+bpm+"BPM("+bpD+"), "+eD+", "+bD+", "+dD};
+};
+
+const callClaude=async(prompt,sys,apiKey)=>{
+  if(!apiKey||!apiKey.trim())throw new Error("API 키 미설정 — 우측 상단 ⚙ 버튼에서 Claude API 키를 입력해 주세요.");
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey.trim(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,system:sys||"You are a professional music producer and songwriter.",messages:[{role:"user",content:prompt}]})});
+  const d=await res.json();if(!res.ok)throw new Error(d.error?d.error.message:"API error "+res.status);
+  return d.content.map(b=>b.text||"").join("");
+};
+const withRetry=async(prompt,sys,onRetry,apiKey)=>{
+  for(let i=0;i<3;i++){try{return await callClaude(prompt,sys,apiKey);}catch(err){const m=err.message.toLowerCase();const ok=m.includes("overloaded")||m.includes("529")||m.includes("network")||m.includes("rate")||m.includes("timeout");if(!ok||i===2)throw err;if(onRetry)onRetry(i+1);await new Promise(r=>setTimeout(r,1000*Math.pow(2,i)));}}
+};
+const cleanLyrics=(raw)=>{let t=raw.replace(/^```[\w]*\n?/gm,'').replace(/```/gm,'').trim();const fb=t.indexOf('[');if(fb>0)t=t.slice(fb).trim();return t;};
+
+function Spin(){return(<span style={{display:"inline-block",animation:"spin 0.8s linear infinite"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>);}
+function CopyBtn({text,label}){const[ok,setOk]=useState(false);const h=async()=>{try{await navigator.clipboard.writeText(text);}catch(e){const t=document.createElement("textarea");t.value=text;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t);}setOk(true);setTimeout(()=>setOk(false),2000);};return(<button onClick={h} style={S.copyBtn}>{ok?"✓ 복사됨":label||"복사"}</button>);}
+function NoKeyWarn(){return(<div style={S.warnBox}>⚠ API 키 미설정 — 우측 상단 ⚙ 버튼에서 Claude API 키를 입력해 주세요.</div>);}
+
+function VocalSlider({label,value,enabled,onEnabledChange,onChange}){
+  const pct=value/83;
+  return(<div style={S.fieldGrp}>
+    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+      <label style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:11,color:C.textDim}}><input type="checkbox" checked={!enabled} onChange={e=>onEnabledChange(!e.target.checked)} style={{accentColor:C.gold}}/>설정 안 함</label>
+      <span style={{fontSize:12,fontWeight:600,color:enabled?C.gold:C.textDim}}>{label}: {enabled?GAYO[value].label:"—"}</span>
+      {enabled&&<span style={{fontSize:10,color:C.textDim}}>({GAYO[value].western})</span>}
+    </div>
+    <div style={{position:"relative",paddingTop:22,opacity:enabled?1:0.35}}>
+      {enabled&&<div style={{position:"absolute",top:0,left:"calc("+Math.round(pct*100)+"% - "+Math.round(pct*14)+"px + 7px)",transform:"translateX(-50%)",fontSize:10,color:C.gold,fontWeight:700,background:C.card,padding:"2px 4px",borderRadius:4,border:"1px solid "+C.goldDim,whiteSpace:"nowrap",pointerEvents:"none"}}>{GAYO[value].label}</div>}
+      <input type="range" min={0} max={83} value={value} onChange={e=>{if(!enabled)onEnabledChange(true);onChange(+e.target.value);}} style={S.slider}/>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:C.textDim,marginTop:2}}><span>-2옥</span><span>-1옥</span><span>0옥</span><span style={{color:C.goldDim,fontWeight:700}}>1옥</span><span>2옥</span><span>3옥</span><span>4옥시</span></div>
+    </div>
+  </div>);
+}
+
+function AIEditBox({content,onUpdate,sys,apiKey}){
+  const[inst,setInst]=useState("");const[lm,setLm]=useState("");const[err,setErr]=useState("");
+  const submit=async()=>{if(!inst.trim()||!content||!apiKey)return;setLm("수정 중...");setErr("");try{const r=await withRetry("Current content:\n\n"+content+"\n\nInstruction: "+inst+"\n\nReturn ONLY the modified content, no explanation.",sys||"Professional editor.",(a)=>setLm("재시도 "+a+"/2"),apiKey);onUpdate(r.trim());setInst("");}catch(e){setErr(e.message);}setLm("");};
+  const onKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submit();}};
+  return(<div style={S.aiBox}><div style={{...S.fieldLbl,marginBottom:7}}>AI로 수정</div>{lm&&<div style={S.retryBox}>{lm}</div>}<div style={{display:"flex",gap:7,alignItems:"flex-start",marginTop:5}}><textarea style={{...S.miniInput,height:48,resize:"none",padding:"5px 7px",fontSize:12}} placeholder="수정 지시사항 (Enter=전송 / Shift+Enter=줄바꿈)" value={inst} onChange={e=>setInst(e.target.value)} onKeyDown={onKey}/><button style={{...S.secondaryBtn,height:48,flexShrink:0,opacity:(!content||!apiKey)?0.4:1}} onClick={submit} disabled={!!lm||!content||!apiKey}>{lm?<Spin/>:"AI 수정"}</button></div>{err&&<div style={{...S.errBox,fontSize:11,padding:"5px 9px",marginTop:5}}>{err}</div>}</div>);
+}
+
+function DZ({idx,active,onOver,onDrop}){return(<div onDragOver={e=>{e.preventDefault();onOver(idx);}} onDrop={e=>{e.preventDefault();onDrop(idx);}} style={{minWidth:12,height:34,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><div style={{width:active?3:0,height:24,background:C.gold,borderRadius:2,transition:"all 0.12s"}}/></div>);}
+
+function BlockBuilder({blocks,onChange}){
+  const dr=useRef(null);const[drop,setDrop]=useState(null);
+  const palStart=(e,t)=>{dr.current={src:'p',type:t};e.dataTransfer.effectAllowed='copy';};
+  const blkStart=(e,i)=>{dr.current={src:'b',from:i};e.dataTransfer.effectAllowed='move';e.stopPropagation();};
+  const end=()=>{dr.current=null;setDrop(null);};
+  const doDrop=(idx)=>{const d=dr.current;if(!d){setDrop(null);return;}if(d.src==='p'){if(ST.has(d.type)&&blocks.some(b=>b.type===d.type)){end();return;}const nb=[...blocks];nb.splice(idx,0,mkBlock(d.type));onChange(nb);}else{const f=d.from;if(idx===f||idx===f+1){end();return;}const nb=[...blocks];const[mv]=nb.splice(f,1);nb.splice(idx>f?idx-1:idx,0,mv);onChange(nb);}end();};
+  const lbl=(i)=>{const t=blocks[i].type,tot=blocks.filter(b=>b.type===t).length;if(tot===1)return t;let c=0;for(let j=0;j<=i;j++)if(blocks[j].type===t)c++;return t+" "+c;};
+  const rm=(uid)=>onChange(blocks.filter(b=>b.uid!==uid));
+  return(<div style={{display:"flex",flexDirection:"column",gap:12}}>
+    <div><div style={S.secLabel}>섹션 팔레트 — 드래그 또는 클릭으로 추가</div><div style={{...S.tagRow,marginTop:6}}>{BT.map(type=>{const dis=ST.has(type)&&blocks.some(b=>b.type===type);return(<div key={type} draggable={!dis} onDragStart={e=>!dis&&palStart(e,type)} onDragEnd={end} onClick={()=>{if(!dis)onChange([...blocks,mkBlock(type)]);}} style={dis?S.blockAddDis:S.blockAdd}>{type}</div>);})}</div></div>
+    <div><div style={S.secLabel}>곡 구조 ({blocks.length}개)</div>
+    <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",minHeight:46,padding:"7px 8px",background:"rgba(201,168,76,0.03)",border:"1px dashed "+(drop!==null?C.gold:C.border),borderRadius:10,gap:0,marginTop:6}} onDragLeave={e=>{if(!e.relatedTarget||!e.currentTarget.contains(e.relatedTarget))setDrop(null);}}>
+      <DZ idx={0} active={drop===0} onOver={setDrop} onDrop={doDrop}/>
+      {blocks.length===0&&<span style={{fontSize:12,color:C.textDim,padding:"0 6px"}}>팔레트에서 블록을 추가하세요</span>}
+      {blocks.flatMap((b,i)=>[<div key={b.uid} draggable onDragStart={e=>blkStart(e,i)} onDragEnd={end} style={S.blockPill}><span style={{fontSize:9,color:C.goldDim}}>||</span><span style={{fontSize:12,fontWeight:600,color:C.gold}}>{lbl(i)}</span><button style={S.blockX} onClick={()=>rm(b.uid)}>x</button></div>,<DZ key={"dz"+i} idx={i+1} active={drop===i+1} onOver={setDrop} onDrop={doDrop}/>])}
+    </div></div>
+  </div>);
+}
+
+function BGMBox({box,idx,onUpdate,onRemove,canRemove}){
+  const tog=(k,n)=>{const u=box[k]||[];onUpdate({[k]:u.includes(n)?u.filter(x=>x!==n):[...u,n]});};
+  return(<div style={S.genreBox}>
+    <div style={S.gHeader}><span style={S.gNum}>장르 {idx+1}</span><select style={S.gSelect} value="BGM" onChange={e=>onUpdate({genre:e.target.value,subgenres:[]})}>{GL.map(g=><option key={g}>{g}</option>)}</select>{canRemove&&<button style={S.removeBtn} onClick={onRemove}>X</button>}</div>
+    <div><div style={S.secLabel}>사용처</div>{Object.entries(BGM_UC).map(([cat,items])=>(<div key={cat}><div style={S.catLabel}>{cat}</div><div style={S.subList}>{items.map(item=>{const on=(box.bgmUsage||[]).includes(item.name);return(<label key={item.name} style={on?S.subItemOn:S.subItem}><input type="checkbox" style={S.chk} checked={on} onChange={()=>tog('bgmUsage',item.name)}/><div><div style={on?S.subNameOn:S.subName}>{item.name}</div><div style={on?S.subDescOn:S.subDesc}>{item.desc}</div></div></label>);})}</div></div>))}</div>
+    <div><div style={S.secLabel}>분위기</div><div style={S.tagRow}>{BGM_AT.map(a=><button key={a} style={(box.bgmAtmos||[]).includes(a)?S.tagOn:S.tag} onClick={()=>tog('bgmAtmos',a)}>{a}</button>)}</div></div>
+    <div><div style={S.secLabel}>스타일</div><div style={S.tagRow}>{BGM_ST.map(s=><button key={s} style={(box.bgmStyles||[]).includes(s)?S.tagOn:S.tag} onClick={()=>tog('bgmStyles',s)}>{s}</button>)}</div></div>
+    <div><div style={S.secLabel}>길이</div><div style={S.tagRow}>{BGM_LN.map(l=><button key={l} style={box.bgmLength===l?S.tagOn:S.tag} onClick={()=>onUpdate({bgmLength:l})}>{l}</button>)}</div></div>
+    <div><div style={S.secLabel}>루프</div><div style={S.tagRow}>{BGM_LP.map(l=><button key={l} style={box.bgmLoop===l?S.tagOn:S.tag} onClick={()=>onUpdate({bgmLoop:l})}>{l}</button>)}</div></div>
+  </div>);
+}
+
+function GenreBox({box,idx,onUpdate,onRemove,canRemove}){
+  const subs=GD[box.genre]||[];
+  const togSub=(name)=>{if(name==="__none__"){onUpdate({subgenres:["__none__"]});return;}const f=(box.subgenres||[]).filter(s=>s!=="__none__");onUpdate({subgenres:f.includes(name)?f.filter(s=>s!==name):[...f,name]});};
+  const togMood=(m)=>{const c=box.moods||[];onUpdate({moods:c.includes(m)?c.filter(x=>x!==m):[...c,m]});};
+  const togR=(r)=>{const c=box.rhythms||[];onUpdate({rhythms:c.includes(r)?c.filter(x=>x!==r):[...c,r]});};
+  const cf=getCf(box.rhythms||[]);
+  const hasMoods=(box.moods||[]).length>0||(box.customMood||"").length>0;
+  const hasRhythms=(box.rhythms||[]).length>0||(box.customRhythm||"").length>0;
+  return(<div style={S.genreBox}>
+    <div style={S.gHeader}><span style={S.gNum}>장르 {idx+1}</span><select style={S.gSelect} value={box.genre} onChange={e=>onUpdate({genre:e.target.value,subgenres:[]})}>{GL.map(g=><option key={g}>{g}</option>)}</select>{canRemove&&<button style={S.removeBtn} onClick={onRemove}>X</button>}</div>
+    <div><div style={S.secLabel}>서브장르</div><div style={S.subList}>
+      <label style={(box.subgenres||[]).includes("__none__")?S.subItemOn:S.subItem}><input type="checkbox" style={S.chk} checked={(box.subgenres||[]).includes("__none__")} onChange={()=>togSub("__none__")}/><div><div style={(box.subgenres||[]).includes("__none__")?S.subNameOn:S.subName}>하위 장르 선택 안 함</div></div></label>
+      {subs.map(sg=>{const on=(box.subgenres||[]).includes(sg.name);return(<label key={sg.name} style={on?S.subItemOn:S.subItem}><input type="checkbox" style={S.chk} checked={on} onChange={()=>togSub(sg.name)}/><div><div style={on?S.subNameOn:S.subName}>{sg.name}</div><div style={on?S.subDescOn:S.subDesc}>{sg.desc}</div></div></label>);})}
+      <div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 8px"}}><span style={S.cLbl}>직접:</span><input style={S.miniInput} placeholder="커스텀 서브장르" value={box.customSub||""} onChange={e=>onUpdate({customSub:e.target.value})}/></div>
+    </div></div>
+    <div><div style={S.secLabel}>박자표</div><div style={S.tagRow}>{TS.map(ts=><button key={ts} style={box.timeSig===ts?S.tagOn:S.tag} onClick={()=>onUpdate({timeSig:ts})}>{ts}</button>)}</div></div>
+    <div><div style={S.secLabel}>음계</div><div style={S.tagRow}>{["Major","Minor"].map(sc=><button key={sc} style={box.scale===sc?S.tagOn:S.tag} onClick={()=>onUpdate({scale:box.scale===sc?"":sc})}>{sc==="Major"?"Major (장조)":"Minor (단조)"}</button>)}</div></div>
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+        <span style={{...S.secLabel,marginBottom:0}}>무드</span>
+        {hasMoods&&<button style={S.resetBtn} onClick={()=>onUpdate({moods:[],customMood:""})}>초기화</button>}
+      </div>
+      <div style={S.tagRow}>{MOODS.map(m=><button key={m} style={(box.moods||[]).includes(m)?S.tagOn:S.tag} onClick={()=>togMood(m)}>{m}</button>)}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}><span style={S.cLbl}>직접:</span><input style={S.miniInput} placeholder="커스텀 무드" value={box.customMood||""} onChange={e=>onUpdate({customMood:e.target.value})}/></div>
+    </div>
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+        <span style={{...S.secLabel,marginBottom:0}}>리듬감 <span style={{color:"rgba(224,85,85,0.7)",fontWeight:400,fontSize:9}}>— 빨간X: 충돌</span></span>
+        {hasRhythms&&<button style={S.resetBtn} onClick={()=>onUpdate({rhythms:[],customRhythm:""})}>초기화</button>}
+      </div>
+      <div style={S.tagRow}>{RHYTHMS.map(r=>{const on=(box.rhythms||[]).includes(r);const conflict=!on&&cf.has(r);return(<button key={r} style={conflict?S.tagConflict:on?S.tagOn:S.tag} onClick={()=>{if(!conflict)togR(r);}} disabled={conflict}>{conflict?"X "+r:r}</button>);})}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}><span style={S.cLbl}>직접:</span><input style={S.miniInput} placeholder="커스텀 리듬감" value={box.customRhythm||""} onChange={e=>onUpdate({customRhythm:e.target.value})}/></div>
+    </div>
+  </div>);
+}
+
+function MultiAudioSection({audioFiles,onChange}){
+  const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const addFile=async(e)=>{const file=e.target.files[0];if(!file||audioFiles.length>=5)return;setLoading(true);setErr("");try{const r=await analyzeAudioFile(file);onChange([...audioFiles,{id:Math.random().toString(36).slice(2),analysis:r,fileName:file.name,trackType:"Full Mix",notes:""}]);}catch(ex){setErr(ex.message);}setLoading(false);e.target.value="";};
+  const upd=(id,u)=>onChange(audioFiles.map(f=>f.id===id?{...f,...u}:f));
+  const rm=(id)=>onChange(audioFiles.filter(f=>f.id!==id));
+  return(<div style={{...S.card,gap:12}}>
+    <div style={S.cardLbl}>참고 음원 업로드 (최대 5개)</div>
+    <div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>오디오 파일을 업로드하면 BPM·에너지·음색·다이나믹을 분석합니다. 각 파일이 어떤 파트인지, 어떻게 레퍼런스로 활용할지 자유롭게 설명해 주세요.</div>
+    {audioFiles.map((f,idx)=>(<div key={f.id} style={{background:"rgba(93,184,122,0.04)",border:"1px solid rgba(93,184,122,0.15)",borderRadius:8,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:"#5db87a",fontWeight:700}}>음원 {idx+1}: {f.fileName}</span><button style={S.removeBtn} onClick={()=>rm(f.id)}>X</button></div>
+      <div style={S.analysisBadge}><div>BPM: <strong>{f.analysis.bpm}</strong> / 에너지: {f.analysis.energyDesc}</div><div>음색: {f.analysis.brightnessDesc} / 다이나믹: {f.analysis.dynamicsDesc}</div><div>길이: ~{Math.floor(f.analysis.duration/60)}:{String(Math.round(f.analysis.duration%60)).padStart(2,'0')}</div></div>
+      <div style={S.fieldGrp}><div style={S.fieldLbl}>트랙 유형</div><select style={S.gSelect} value={f.trackType} onChange={e=>upd(f.id,{trackType:e.target.value})}>{ATT.map(t=><option key={t}>{t}</option>)}</select></div>
+      <div style={S.fieldGrp}><div style={S.fieldLbl}>파일 설명 & 레퍼런스 활용 방향</div><textarea style={{...S.textarea,height:80,fontSize:12}} placeholder={"이 파일에 대해 자유롭게 설명해 주세요.\n예) 코러스 드럼 트랙입니다. 이 그루브감을 유지하되 BPM을 약간 높이고 싶습니다."} value={f.notes||""} onChange={e=>upd(f.id,{notes:e.target.value})}/></div>
+    </div>))}
+    {audioFiles.length<5&&(<label style={{...S.addBoxBtn,cursor:loading?"wait":"pointer",opacity:loading?0.7:1}}>{loading?<><Spin/>분석 중...</>:"+ 음원 추가 분석 ("+audioFiles.length+"/5)"}<input type="file" accept=".mp3,.wav,.mp4,.m4a,.webm,.flac,.aac,audio/*,video/*" onChange={addFile} style={{display:"none"}} disabled={loading}/></label>)}
+    {err&&<div style={S.errBox}>{err}</div>}
+  </div>);
+}
+
+function YouTubeRefCard({state,onChange,apiKey}){
+  const[lm,setLm]=useState("");const[err,setErr]=useState("");
+  const extractId=(url)=>{const m=url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;};
+  const analyze=async()=>{
+    const vid=extractId(state.ytUrl||"");if(!vid){setErr("유효한 YouTube URL을 입력해 주세요.");return;}
+    setLm("YouTube 정보 가져오는 중...");setErr("");
+    try{
+      const res=await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${vid}&format=json`);
+      if(!res.ok)throw new Error("영상 정보를 불러올 수 없습니다.");
+      const info=await res.json();setLm("스타일 분석 중...");
+      const ext=await withRetry(`Song: "${info.title}" by ${info.author_name}\nExtract key Suno AI style descriptors as comma-separated English list.\nOutput ONLY descriptors, nothing else.`,"Suno AI music prompt analyzer. English only.",(a)=>setLm("재시도 "+a+"/2"),apiKey);
+      onChange("ytInfo",{title:info.title,artist:info.author_name});onChange("ytExtracted",ext.trim());
+    }catch(e){setErr(e.message);}setLm("");
+  };
+  return(<div style={S.card}>
+    <div style={S.cardLbl}>YouTube 레퍼런스 (선택)</div>
+    {!apiKey&&<NoKeyWarn/>}
+    <div style={{display:"flex",gap:7}}><input style={{...S.input,flex:1}} placeholder="https://www.youtube.com/watch?v=..." value={state.ytUrl||""} onChange={e=>onChange("ytUrl",e.target.value)}/><button style={{...S.secondaryBtn,opacity:(!state.ytUrl||!!lm||!apiKey)?0.45:1}} onClick={analyze} disabled={!state.ytUrl||!!lm||!apiKey}>{lm?<Spin/>:"분석"}</button></div>
+    {lm&&<div style={S.retryBox}>{lm}</div>}
+    {err&&<div style={{...S.errBox,fontSize:11}}>{err}</div>}
+    {state.ytInfo&&<div style={S.analysisBadge}><div>제목: <strong>{state.ytInfo.title}</strong></div><div>아티스트: {state.ytInfo.artist}</div></div>}
+    {state.ytExtracted&&(<div style={S.fieldGrp}><div style={S.fieldLbl}>추출된 스타일 디스크립터</div><textarea style={{...S.textarea,height:52}} value={state.ytExtracted} onChange={e=>onChange("ytExtracted",e.target.value)}/></div>)}
+  </div>);
+}
+
+function SettingsPanel({apiKey,setApiKey,onClose,onCopyAll}){
+  return(<div style={S.settingsCard}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <span style={{fontSize:13,fontWeight:700,color:C.gold}}>⚙ 설정</span>
+      <button style={S.removeBtn} onClick={onClose}>✕ 닫기</button>
+    </div>
+    <div style={S.fieldGrp}>
+      <div style={{fontSize:12,fontWeight:600,color:C.textDim}}>Claude API 키 <span style={{color:"#e05555",fontWeight:700}}>*필수</span></div>
+      <div style={{...S.hintBox,fontSize:11}}>이 앱의 모든 AI 호출은 입력된 API 키만 사용합니다. Claude.ai와 완전히 무관합니다.</div>
+      <input type="password" style={S.input} placeholder="sk-ant-api03-..." value={apiKey} onChange={e=>setApiKey(e.target.value)} autoFocus/>
+      {apiKey?<span style={{fontSize:11,color:"#5db87a"}}>✓ API 키 설정됨</span>:<span style={{fontSize:11,color:"#e05555"}}>⚠ API 키를 입력해 주세요</span>}
+    </div>
+    <button style={S.primaryBtn} onClick={onCopyAll}>전체 복사 (제목 + 가사 + 프롬프트)</button>
+  </div>);
+}
+
+function Step1({boxes,setBoxes,songMeta,setSongMeta}){
+  const upd=(id,u)=>setBoxes(p=>p.map(b=>b.id===id?{...b,...u}:b));
+  return(<div style={{display:"flex",flexDirection:"column",gap:14}}>
+    <div style={S.card}>
+      <div style={S.cardLbl}>목표 BPM</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,color:C.textDim}}><input type="checkbox" checked={songMeta.bpm===0} onChange={e=>setSongMeta(p=>({...p,bpm:e.target.checked?0:120}))} style={{accentColor:C.gold}}/>자동 (장르 기반)</label>
+        {songMeta.bpm>0&&<><input type="range" min={40} max={220} step={1} value={songMeta.bpm} onChange={e=>setSongMeta(p=>({...p,bpm:+e.target.value}))} style={{...S.slider,flex:1,minWidth:120}}/><span style={{fontSize:14,color:C.gold,fontWeight:700,minWidth:62}}>{songMeta.bpm} BPM</span></>}
+      </div>
+    </div>
+    {boxes.map((b,i)=>b.genre==='BGM'?<BGMBox key={b.id} box={b} idx={i} onUpdate={u=>upd(b.id,u)} onRemove={()=>setBoxes(p=>p.filter(x=>x.id!==b.id))} canRemove={boxes.length>1}/>:<GenreBox key={b.id} box={b} idx={i} onUpdate={u=>upd(b.id,u)} onRemove={()=>setBoxes(p=>p.filter(x=>x.id!==b.id))} canRemove={boxes.length>1}/>)}
+    <button style={S.addBoxBtn} onClick={()=>setBoxes(p=>[...p,makeBox()])}>+ 장르 박스 추가</button>
+  </div>);
+}
+
+function parseTitles(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);let gA=[],gB=[],cur=null;
+  for(const line of lines){if(/GROUP[_\s]?A/i.test(line)){cur='A';continue;}if(/GROUP[_\s]?B/i.test(line)){cur='B';continue;}const m=line.match(/^\d+[\.\)]\s*(.+)/);if(m){if(cur==='A')gA.push(m[1]);else if(cur==='B')gB.push(m[1]);}}
+  if(!gA.length&&!gB.length){const all=lines.filter(l=>l.match(/^\d+[\.\)]\s*/)).map(l=>l.replace(/^\d+[\.\)]\s*/,""));gA=all.slice(0,5);gB=all.slice(5,10);}
+  return{groupA:gA.slice(0,5),groupB:gB.slice(0,5)};
+}
+
+function Step2({boxes,state,onChange,apiKey}){
+  const[lm,setLm]=useState("");const[err,setErr]=useState("");const[lc,setLc]=useState("");const[ec,setEc]=useState("");
+  const gStr=boxes.map(getBoxStr).join(" + ");
+  const genTitles=async()=>{if(!!lm||!apiKey)return;setLm("생성 중...");setErr("");try{
+    const kw=state.keyword?`Keywords for Group A: "${state.keyword}"`:`Genre: ${gStr}`;
+    const cn=state.concept?`\nConcept: "${state.concept}"`:'';
+    const ln=TLP[state.titleLang!=null?state.titleLang:2];
+    const text=await withRetry(`Generate 10 song titles for a ${gStr} track:\n[GROUP_A] 5 titles, keyword-grounded\n${kw}\nSTRICT word count: exactly ${state.wordCount||3} words (+-1 max).\n${ln}\n[GROUP_B] 5 experimental/interpretive titles. Do NOT directly use keyword.${cn}\nReturn EXACTLY:\n[GROUP_A]\n1. Title\n2. Title\n3. Title\n4. Title\n5. Title\n[GROUP_B]\n1. Title\n2. Title\n3. Title\n4. Title\n5. Title`,"Professional music producer.",(a)=>setLm("재시도 "+a+"/2"),apiKey);
+    const{groupA,groupB}=parseTitles(text);onChange("titlesA",groupA);onChange("titlesB",groupB);
+  }catch(e){setErr(e.message);}setLm("");};
+  const genConcepts=async()=>{if(!state.keyword||!apiKey)return;setLc("추천 중...");setEc("");try{
+    const text=await withRetry(`Keyword: "${state.keyword}", Genre: ${gStr}\nSuggest 5 song concept/mood descriptions in Korean (1-2 sentences each).\nReturn ONLY numbered list 1-5.`,"Professional music producer.",null,apiKey);
+    onChange("suggestedConcepts",text.split('\n').map(l=>l.replace(/^\d+[\.\)]\s*/,"").trim()).filter(Boolean).slice(0,5));
+  }catch(e){setEc(e.message);}setLc("");};
+  const tl=state.titleLang!=null?state.titleLang:2;
+  const kwKD=(e)=>{if(e.key==="Enter"&&!e.shiftKey&&state.keyword&&!lm&&apiKey){e.preventDefault();genTitles();}};
+  return(<div style={S.stepBody}>
+    {!apiKey&&<NoKeyWarn/>}
+    <div style={S.infoBox}>선택된 장르: <strong style={{color:C.gold}}>{gStr||"(없음)"}</strong></div>
+    <div style={S.card}>
+      <div style={S.cardLbl}>키워드 & 컨셉</div>
+      <div style={S.fieldGrp}><div style={S.fieldLbl}>키워드 <span style={{fontSize:11,color:C.textDim,fontWeight:400}}>(Enter로 제목 자동 생성)</span></div>
+        <div style={{display:"flex",gap:7}}><input style={{...S.input,flex:1}} placeholder="예: 새벽, 골목길, 이별 후" value={state.keyword||""} onChange={e=>onChange("keyword",e.target.value)} onKeyDown={kwKD}/><button style={{...S.secondaryBtn,opacity:(!state.keyword||!apiKey||!!lc)?0.4:1}} onClick={genConcepts} disabled={!state.keyword||!apiKey||!!lc}>{lc?"추천 중...":"컨셉 추천"}</button></div>
+        {ec&&<div style={{...S.errBox,fontSize:11,padding:"5px 9px"}}>{ec}</div>}
+      </div>
+      {state.suggestedConcepts&&state.suggestedConcepts.length>0&&(<div style={S.fieldGrp}><div style={S.fieldLbl}>추천 컨셉 (클릭하면 입력)</div><div style={{display:"flex",flexDirection:"column",gap:4,marginTop:3}}>{state.suggestedConcepts.map((c,i)=><button key={i} style={state.concept===c?S.conceptChipOn:S.conceptChip} onClick={()=>onChange("concept",c)}>{c}</button>)}</div></div>)}
+      <div style={S.fieldGrp}><div style={S.fieldLbl}>컨셉</div><input style={S.input} placeholder="예: 헤어짐 후 홀가분함, 한여름 밤의 설렘..." value={state.concept||""} onChange={e=>onChange("concept",e.target.value)}/></div>
+    </div>
+    <div style={S.fieldGrp}><div style={S.fieldLbl}>제목 언어: <span style={{color:C.gold,fontWeight:700}}>{TLL[tl]}</span></div><input type="range" min={0} max={2} step={1} value={tl} onChange={e=>onChange("titleLang",+e.target.value)} style={S.slider}/><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textDim}}><span>한국어</span><span>한영 병기</span><span>영어</span></div></div>
+    <div style={S.fieldGrp}><div style={S.fieldLbl}>제목 단어 수 (Group A): <span style={{color:C.gold,fontWeight:700}}>{state.wordCount||3}단어 ±1</span></div><input type="range" min={1} max={10} step={1} value={state.wordCount||3} onChange={e=>onChange("wordCount",+e.target.value)} style={S.slider}/><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textDim}}><span>1단어</span><span>5단어</span><span>10단어</span></div></div>
+    {lm&&<div style={S.retryBox}>{lm}</div>}
+    <button style={{...S.primaryBtn,opacity:(!apiKey||!!lm)?0.45:1}} onClick={genTitles} disabled={!!lm||!apiKey}>{lm?<Spin/>:"제목 10개 생성 (A/B 그룹)"}</button>
+    {err&&<div style={S.errBox}>{err}</div>}
+    {(state.titlesA?.length>0||state.titlesB?.length>0)&&(<div style={{display:"flex",flexDirection:"column",gap:9}}>
+      {state.titlesA?.length>0&&(<div><div style={S.groupLabel}><span style={S.groupBadge}>GROUP A</span>키워드 직접 활용</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{state.titlesA.map((t,i)=><button key={i} style={state.selected===t?S.titleBtnOn:S.titleBtn} onClick={()=>onChange("selected",t)}>{t}</button>)}</div></div>)}
+      {state.titlesB?.length>0&&(<div style={{marginTop:3}}><div style={S.groupLabel}><span style={{...S.groupBadge,background:"rgba(180,120,255,0.12)",borderColor:"rgba(180,120,255,0.4)",color:"#b478ff"}}>GROUP B</span>키워드 감성 응용</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{state.titlesB.map((t,i)=><button key={i} style={state.selected===t?S.titleBtnOn:S.titleBtn} onClick={()=>onChange("selected",t)}>{t}</button>)}</div></div>)}
+    </div>)}
+    <div><div style={S.fieldLbl}>직접 입력</div><input style={S.input} placeholder="제목을 직접 입력하세요" value={state.custom||""} onChange={e=>{onChange("custom",e.target.value);onChange("selected",e.target.value);}}/></div>
+    {state.selected&&(<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={S.selectedBadge}>선택됨: <strong>{state.selected}</strong></div><CopyBtn text={state.selected} label="제목 복사"/></div>)}
+    <AIEditBox content={state.selected} onUpdate={v=>onChange("selected",v)} sys="You are a professional music title editor." apiKey={apiKey}/>
+  </div>);
+}
+
+function Step3({boxes,step2,state,onChange,apiKey}){
+  const[lm,setLm]=useState("");const[err,setErr]=useState("");
+  const gStr=boxes.map(b=>b.genre).join(" + ");
+  const iD=["리듬감 우선, 음절 패턴 중심","반복 후렴 중심, 리듬+의미 균형","감정 서사, 스토리라인 중심"];
+  const secLabels=()=>{const cn={},tot=state.blocks.reduce((a,b)=>{a[b.type]=(a[b.type]||0)+1;return a;},{});return state.blocks.map(b=>{cn[b.type]=(cn[b.type]||0)+1;return tot[b.type]>1?b.type+" "+cn[b.type]:b.type;});};
+  const cleanLyrics=(raw)=>{let t=raw.replace(/^```[\w]*\n?/gm,'').replace(/```/gm,'').trim();const fb=t.indexOf('[');if(fb>0)t=t.slice(fb).trim();return t;};
+  const gen=async()=>{
+    if(!state.blocks.length||!apiKey)return;setLm("가사 생성 중...");setErr("");
+    try{
+      const secs=secLabels();const lsld=state.langSlider!=null?state.langSlider:2;
+      const tN=step2.selected?`\nTitle: "${step2.selected}" — use in chorus hook.`:"";
+      const chN=state.chorusRepeat?"\n- CHORUS: same syllable pattern every occurrence.":"";
+      let charNote='';
+      if(state.charLimit>0){
+        const target=state.charLimit-50;
+        const alloc=allocSec(state.blocks,target);
+        const allocStr=alloc?'\n  Section budgets:\n'+alloc.map(s=>`    [${s.lbl}]: max ${s.chars} chars`).join('\n'):'';
+        charNote=`\n\n🚨 CHARACTER LIMIT:\n- Hard maximum: ${state.charLimit} chars TOTAL. Not one char over.\n- Count: Korean char=1, English char=1, space=1, newline=1.${allocStr}`;
+      }
+      const sys="You are a professional lyricist. Output ONLY song lyrics — no planning text, no meta-commentary, no explanations, no code blocks. The very first character of your output must be '['. Character and line-count limits are absolute.";
+      const buildP=(att)=>`${att>0?`🚨 RETRY ${att}: fix meta-commentary and character limit.\n\n`:''}Write song lyrics for a ${gStr} track.${tN}\n${LP[lsld]}\nSections: ${secs.map(s=>`[${s}]`).join(' → ')}${charNote}\n\n📏 LINE COUNT — ABSOLUTE:\n- EVERY section must have EXACTLY 4 or 8 lines. No other count.\n- Applies to ALL: Intro, Verse, Pre-Chorus, Chorus, Bridge, Outro.\n- 1,2,3,5,6,7 lines = WRONG. Only 4 or 8.${chN}\n\nFORMAT: First char must be '['. Blank line between sections. Nothing after last section.`;
+      let lyr=cleanLyrics((await withRetry(buildP(0),sys,(a)=>setLm("재시도 "+a+"/2"),apiKey)).trim());
+      if(state.charLimit>0&&lyr.length>state.charLimit){
+        setLm(`글자 수 초과 (${lyr.length}자 / 한도 ${state.charLimit}자) — 재생성 중...`);
+        lyr=cleanLyrics((await withRetry(buildP(1),sys,(a)=>setLm("재시도 "+a+"/2"),apiKey)).trim());
+      }
+      onChange("lyrics",lyr);
+    }catch(e){setErr(e.message);}setLm("");
+  };
+  const cc=(state.lyrics&&state.lyrics.length)||0;
+  const over=state.charLimit>0&&cc>state.charLimit;
+  const near=state.charLimit>0&&!over&&Math.abs(cc-state.charLimit)<=50;
+  const ls=state.langSlider!=null?state.langSlider:2;
+  return(<div style={S.stepBody}>
+    {!apiKey&&<NoKeyWarn/>}
+    <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",fontSize:13,color:C.text}}><input type="checkbox" checked={state.noLyrics||false} onChange={e=>onChange("noLyrics",e.target.checked)} style={{accentColor:C.gold,width:15,height:15}}/>가사를 생성하지 않음 (인스트루멘탈)</label>
+    {!state.noLyrics&&(<div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={S.card}><div style={S.cardLbl}>가사 구조 만들기</div><BlockBuilder blocks={state.blocks} onChange={v=>onChange("blocks",v)}/></div>
+      <div style={S.rowGrid}>
+        <div style={S.fieldGrp}><div style={S.fieldLbl}>언어 비중: <span style={{color:C.gold,fontWeight:600}}>{LL[ls]}</span></div><input type="range" min={0} max={5} step={1} value={ls} onChange={e=>onChange("langSlider",+e.target.value)} style={S.slider}/><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textDim}}><span>한국어</span><span>영어</span></div><div style={S.hintBox}>{LL[ls]}</div></div>
+        <div style={S.fieldGrp}><div style={S.fieldLbl}>가사 중요도: {["낮음","중간","높음"][state.importance||0]}</div><input type="range" min={0} max={2} step={1} value={state.importance||0} onChange={e=>onChange("importance",+e.target.value)} style={S.slider}/><div style={S.hintBox}>{iD[state.importance||0]}</div></div>
+      </div>
+      <div style={{...S.card,gap:8}}>
+        <div style={S.cardLbl}>가사 길이 설정</div>
+        <div style={S.fieldGrp}><div style={S.fieldLbl}>빠른 선택</div><div style={S.tagRow}>{LPR.map(p=><button key={p.label} style={state.charLimit===p.chars?S.tagOn:S.tag} onClick={()=>onChange("charLimit",p.chars)}>{p.label}</button>)}<button style={state.charLimit===0?S.tagOn:S.tag} onClick={()=>onChange("charLimit",0)}>설정 안 함</button></div></div>
+        <div style={S.fieldGrp}>
+          <div style={S.fieldLbl}>목표 글자 수: <span style={{color:C.gold,fontWeight:700}}>{fmtC(state.charLimit)}</span>{state.charLimit>0&&<span style={{fontSize:11,color:C.textDim,marginLeft:7}}>절대 한도</span>}</div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}><button onClick={()=>onChange("charLimit",Math.max(0,state.charLimit-100))} style={S.stepBtn}>-</button><input type="range" min={0} max={3000} step={100} value={state.charLimit} onChange={e=>onChange("charLimit",+e.target.value)} style={{...S.slider,flex:1}}/><button onClick={()=>onChange("charLimit",Math.min(3000,state.charLimit+100))} style={S.stepBtn}>+</button><span style={{fontSize:12,color:C.gold,minWidth:72,textAlign:"right",fontWeight:600}}>{fmtC(state.charLimit)}</span></div>
+          <div style={S.hintBox}>{getLyricHint(state.charLimit)}</div>
+        </div>
+      </div>
+      <label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",fontSize:13,color:C.text}}><input type="checkbox" checked={state.chorusRepeat||false} onChange={e=>onChange("chorusRepeat",e.target.checked)} style={{accentColor:C.gold,width:15,height:15}}/>후렴 멜로디 반복 — 코러스마다 비슷한 음절 패턴으로 생성</label>
+      {lm&&<div style={S.retryBox}>{lm}</div>}
+      <button style={{...S.primaryBtn,opacity:(!apiKey||!!lm||!state.blocks.length)?0.45:1}} onClick={gen} disabled={!!lm||!state.blocks.length||!apiKey}>{lm?<Spin/>:"가사 생성"}</button>
+      {err&&<div style={S.errBox}>{err}</div>}
+      {state.lyrics&&(<div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7,flexWrap:"wrap",gap:5}}>
+          <span style={S.fieldLbl}>가사 ({cc}자{state.charLimit>0&&<span style={{color:over?"#e05555":near?"#5db87a":C.textDim}}> / 한도 {state.charLimit}자</span>})</span>
+          <CopyBtn text={state.lyrics} label="가사 복사"/>
+        </div>
+        <textarea style={{...S.textarea,height:300,borderColor:over?"#e05555":C.border}} value={state.lyrics} onChange={e=>onChange("lyrics",e.target.value)}/>
+        {over&&<div style={{...S.errBox,fontSize:11,padding:"5px 9px",marginTop:3}}>글자 수 한도 초과 ({cc-state.charLimit}자 초과)</div>}
+      </div>)}
+      <AIEditBox content={state.lyrics} onUpdate={v=>onChange("lyrics",v)} sys="Expert lyricist." apiKey={apiKey}/>
+    </div>)}
+  </div>);
+}
+
+function Step4({boxes,state,onChange,s3,songMeta,apiKey}){
+  const[lm,setLm]=useState("");const[err,setErr]=useState("");
+  const gStr=boxes.map(getBoxStr).join(" + ");
+  const mStr=[...new Set(boxes.flatMap(b=>b.genre==='BGM'?(b.bgmAtmos||[]):(b.moods||[])))].join(", ")||"balanced";
+  const rStr=[...new Set(boxes.flatMap(b=>b.rhythms||[]))].join(", ")||"moderate";
+  const togInst=(ins)=>{const u=state.instruments||[];onChange("instruments",u.includes(ins)?u.filter(x=>x!==ins):[...u,ins]);};
+  const gen=async()=>{
+    if(!apiKey)return;setLm("생성 중...");setErr("");
+    try{
+      const bpmC=songMeta.bpm>0?songMeta.bpm:120;
+      const tsN=[...new Set(boxes.map(b=>b.timeSig).filter(Boolean).filter(t=>t!=="4/4"))].length?"\nTime signature: "+[...new Set(boxes.map(b=>b.timeSig))].join(", "):"";
+      const bpmN=songMeta.bpm>0?"\nTarget BPM: "+songMeta.bpm+".":"";
+      const scN=[...new Set(boxes.filter(b=>b.scale).map(b=>b.scale))].length?"\nScale: "+[...new Set(boxes.filter(b=>b.scale).map(b=>b.scale))].join(", "):"";
+      const inN=state.instruments?.length?"\nEmphasized instruments (feature prominently): "+state.instruments.join(", "):"";
+      const vP=[];if(state.vocalLowEnabled&&state.vocalLow>=0)vP.push("lowest: "+GAYO[state.vocalLow].western);if(state.vocalHighEnabled&&state.vocalHigh>=0)vP.push("highest: "+GAYO[state.vocalHigh].western);
+      const vN=vP.length?"\nVocal range: "+vP.join(", "):"";
+      const lyN=s3?.lyrics?"\nLyric density: "+s3.lyrics.length+" chars.":"";
+      const ytN=state.ytExtracted?"\nREFERENCE STYLE: "+state.ytExtracted:"";
+      const auN=state.audioFiles?.length?"\nREFERENCE AUDIO:\n"+state.audioFiles.map((f,i)=>`[Ref${i+1}] ${f.trackType}(${f.fileName}): ${f.analysis.summary}${f.notes?` | notes: "${f.notes}"`:""}`).join("\n"):"";
+      let dpfx="",dsfx="";
+      if(state.songLength>0){const mn=Math.floor(state.songLength/60),sc=state.songLength%60;const ts=mn+"min"+(sc>0?" "+sc+"sec":"");const eb=Math.round(state.songLength*bpmC/4/60);const sct=calcSC(state.songLength);dpfx=`HIGHEST PRIORITY DURATION: EXACTLY ${ts} (hard limit +-15s), ~${eb} bars at ${bpmC}bpm, ${sct} sections ~${Math.round(state.songLength/sct)}s each, `;dsfx=`, strict duration ${ts}, fade/end naturally at ${ts}`;}
+      const instrPool=pick(IP,2).join(", ");
+      const raw=await withRetry(dpfx+`Create a Suno AI prompt for a ${gStr} track. Mood: ${mStr}. Rhythm: ${rStr}. Atmosphere: ${pick(AP,3).join(", ")}. Instruments: ${instrPool}. Hooks: ${pick(HP,3).join(", ")}.${tsN}${bpmN}${scN}${inN}${vN}${lyN}${ytN}${auN}${dsfx}\nRULES: 1. English ONLY. 2. Single comma-separated list, no line breaks. 3. 950-999 chars total. 4. NEVER include vibraphone or accordion.`,"Suno AI prompt expert. English only. Comma-separated list, 950-999 chars. Never include vibraphone or accordion.",(a)=>setLm("재시도 "+a+"/2"),apiKey);
+      onChange("prompt",trimP(raw.trim().replace(/,?\s*(?:vibraphone|accordion)[^,]*/gi,'').replace(/,\s*,/g,',').trim()));
+    }catch(e){setErr(e.message);}setLm("");
+  };
+  const cc=state.prompt?state.prompt.length:0;const sl=state.songLength||0;
+  return(<div style={S.stepBody}>
+    {!apiKey&&<NoKeyWarn/>}
+    <YouTubeRefCard state={state} onChange={onChange} apiKey={apiKey}/>
+    <MultiAudioSection audioFiles={state.audioFiles||[]} onChange={v=>onChange("audioFiles",v)}/>
+    <div style={S.card}><div style={S.cardLbl}>추가 강조 악기 (선택) <span style={{fontSize:10,color:C.textDim,fontWeight:400,textTransform:"none"}}>— 선택한 악기를 프롬프트에서 특별히 강조합니다</span></div><div style={S.tagRow}>{INST.map(ins=><button key={ins} style={(state.instruments||[]).includes(ins)?S.tagOn:S.tag} onClick={()=>togInst(ins)}>{ins}</button>)}</div></div>
+    <div style={S.card}>
+      <div style={S.cardLbl}>보컬 음역대 (가요식 표기, 선택)</div>
+      <div style={{...S.hintBox,fontSize:11}}>1옥도 = 중간 도 (C4). 슬라이더 이동 시 자동으로 활성화됩니다.</div>
+      <VocalSlider label="최저음" value={state.vocalLow!=null?state.vocalLow:GC} enabled={state.vocalLowEnabled||false} onEnabledChange={v=>onChange("vocalLowEnabled",v)} onChange={v=>onChange("vocalLow",v)}/>
+      <VocalSlider label="최고음" value={state.vocalHigh!=null?state.vocalHigh:GC} enabled={state.vocalHighEnabled||false} onEnabledChange={v=>onChange("vocalHighEnabled",v)} onChange={v=>onChange("vocalHigh",v)}/>
+    </div>
+    <div style={{...S.card,gap:8}}>
+      <div style={S.cardLbl}>목표 곡 길이 <span style={{fontSize:9,color:C.textDim}}>(오차 ±15초 / 10초 단위)</span></div>
+      <div style={S.fieldGrp}>
+        <div style={S.fieldLbl}>곡 길이: <span style={{color:C.gold,fontWeight:700}}>{fmtLen(sl)}</span>{sl>0&&<span style={{fontSize:11,color:C.textDim,marginLeft:7}}>±15초</span>}</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <button onClick={()=>onChange("songLength",Math.max(0,sl-10))} style={S.stepBtn}>-</button>
+          <input type="range" min={0} max={600} step={10} value={sl} onChange={e=>onChange("songLength",+e.target.value)} style={{...S.slider,flex:1}}/>
+          <button onClick={()=>onChange("songLength",Math.min(600,sl+10))} style={S.stepBtn}>+</button>
+        </div>
+        <div style={{display:"flex",paddingLeft:30,paddingRight:30}}>{[0,1,2,3,4,5,6,7,8,9,10].map(m=><div key={m} style={{flex:1,textAlign:m===0?"left":m===10?"right":"center",fontSize:9,color:sl>=m*60&&sl<(m+1)*60||(sl===600&&m===10)?C.gold:C.textDim}}>{m===0?"없음":m+"분"}</div>)}</div>
+        {sl>0&&<div style={S.hintBox}>{fmtLen(sl)} — 섹션 약 {calcSC(sl)}개, 평균 ~{Math.round(sl/calcSC(sl))}초</div>}
+      </div>
+    </div>
+    {lm&&<div style={S.retryBox}>{lm}</div>}
+    <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+      <button style={{...S.primaryBtn,opacity:(!apiKey||!!lm)?0.45:1}} onClick={gen} disabled={!!lm||!apiKey}>{lm?<Spin/>:"프롬프트 생성"}</button>
+      {state.prompt&&<button style={{...S.secondaryBtn,opacity:(!apiKey||!!lm)?0.45:1}} onClick={gen} disabled={!!lm||!apiKey}>재생성</button>}
+    </div>
+    {err&&<div style={S.errBox}>{err}</div>}
+    {state.prompt&&(<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+        <span style={S.fieldLbl}>Suno 프롬프트 <span style={{color:cc>999?"#ff5555":cc>=900?C.gold:C.textDim,fontSize:11}}>{cc}/1000자</span></span>
+        <CopyBtn text={state.prompt} label="프롬프트 복사"/>
+      </div>
+      <textarea style={{...S.textarea,height:150,color:cc>999?"#ff5555":C.text}} value={state.prompt} onChange={e=>onChange("prompt",e.target.value)}/>
+    </div>)}
+    <AIEditBox content={state.prompt} onUpdate={v=>onChange("prompt",v)} sys="Suno AI prompt expert. English only. 950-999 chars. Never include vibraphone or accordion." apiKey={apiKey}/>
+  </div>);
+}
+
+function StepFooter({stepIdx,done,onToggle}){return(<div style={{marginTop:20,paddingTop:14,borderTop:"1px solid "+C.border,display:"flex",justifyContent:"flex-end"}}><label style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer"}}><input type="checkbox" checked={done} onChange={()=>onToggle(stepIdx)} style={{accentColor:"#5db87a",width:15,height:15}}/><span style={{fontSize:12,color:done?"#5db87a":C.textDim,fontWeight:done?600:400}}>{done?"이 단계 완료됨":"이 단계 완료로 표시"}</span></label></div>);}
+
+const STEP_LABELS=["장르 & 무드","곡 제목","가사 생성","Suno 프롬프트"];
+
+function App(){
+  const[active,setActive]=useState(0);
+  const[done,setDone]=useState(new Set());
+  const[msg,setMsg]=useState("");
+  const[boxes,setBoxes]=useState(()=>[makeBox("Pop")]);
+  const[s2,setS2]=useState({titlesA:[],titlesB:[],selected:"",custom:"",keyword:"",concept:"",suggestedConcepts:[],wordCount:3,titleLang:2});
+  const[s3,setS3]=useState({langSlider:5,importance:1,lyrics:"",charLimit:1200,blocks:makeInitBlocks(),noLyrics:false,chorusRepeat:false});
+  const[s4,setS4]=useState({prompt:"",songLength:180,instruments:[],vocalLow:GC,vocalLowEnabled:false,vocalHigh:GC,vocalHighEnabled:false,ytUrl:"",ytInfo:null,ytExtracted:"",audioFiles:[]});
+  const[songMeta,setSongMeta]=useState({bpm:0});
+  const[apiKey,setApiKey]=useState("");
+  const[showSettings,setShowSettings]=useState(false);
+  const[showJson,setShowJson]=useState(false);
+  const[jsonText,setJsonText]=useState("");
+
+  const notify=(t)=>{setMsg(t);setTimeout(()=>setMsg(""),2500);};
+  const toggleDone=(n)=>setDone(p=>{const nx=new Set(p);nx.has(n)?nx.delete(n):nx.add(n);return nx;});
+  const mark=(n)=>setDone(p=>new Set([...p,n]));
+  const upS2=(k,v)=>{setS2(p=>({...p,[k]:v}));if(k==="selected"&&v)mark(1);};
+  const upS3=(k,v)=>{setS3(p=>({...p,[k]:v}));if(k==="lyrics"&&v)mark(2);};
+  const upS4=(k,v)=>{setS4(p=>({...p,[k]:v}));if(k==="prompt"&&v)mark(3);};
+
+  const snap=()=>({done:[...done],boxes,songMeta,s2:{...s2},s3:{...s3,blocks:s3.blocks.map(b=>({uid:b.uid,type:b.type}))},s4:{prompt:s4.prompt,songLength:s4.songLength,instruments:s4.instruments,vocalLow:s4.vocalLow,vocalLowEnabled:s4.vocalLowEnabled,vocalHigh:s4.vocalHigh,vocalHighEnabled:s4.vocalHighEnabled,ytUrl:s4.ytUrl,ytExtracted:s4.ytExtracted}});
+
+  const handleExport=async()=>{
+    const j=JSON.stringify(snap(),null,2);
+    setJsonText(j);setShowJson(true);
+    try{await navigator.clipboard.writeText(j);notify("JSON 클립보드에 복사됨");}catch(e){notify("아래 텍스트를 복사해 .json 파일로 저장하세요");}
+  };
+  const handleImport=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{try{const sn=JSON.parse(ev.target.result);if(sn.done)setDone(new Set(sn.done));if(sn.boxes)setBoxes(sn.boxes.map(b=>({...makeBox(),...b})));if(sn.s2)setS2(p=>({...p,titlesA:[],titlesB:[],suggestedConcepts:[],...sn.s2}));if(sn.s3)setS3(p=>({...p,...sn.s3,blocks:(sn.s3.blocks||[]).map(b=>mkBlock(b.type))}));if(sn.s4)setS4(p=>({...p,...sn.s4,audioFiles:[],ytInfo:null}));if(sn.songMeta)setSongMeta(sn.songMeta);notify("불러오기 완료");}catch(ex){notify("JSON 형식 오류");}};r.readAsText(f);e.target.value="";};
+  const handleReset=()=>{setBoxes([makeBox("Pop")]);setS2({titlesA:[],titlesB:[],selected:"",custom:"",keyword:"",concept:"",suggestedConcepts:[],wordCount:3,titleLang:2});setS3({langSlider:5,importance:1,lyrics:"",charLimit:1200,blocks:makeInitBlocks(),noLyrics:false,chorusRepeat:false});setS4({prompt:"",songLength:180,instruments:[],vocalLow:GC,vocalLowEnabled:false,vocalHigh:GC,vocalHighEnabled:false,ytUrl:"",ytInfo:null,ytExtracted:"",audioFiles:[]});setSongMeta({bpm:0});setDone(new Set());setActive(0);notify("초기화 완료");};
+  const handleCopyAll=async()=>{const parts=[];if(s2.selected)parts.push("[제목]\n"+s2.selected);if(s3.lyrics)parts.push("[가사]\n"+s3.lyrics);if(s4.prompt)parts.push("[Suno 프롬프트]\n"+s4.prompt);if(!parts.length){notify("복사할 내용이 없습니다");return;}try{await navigator.clipboard.writeText(parts.join("\n\n"));}catch(e){const t=document.createElement("textarea");t.value=parts.join("\n\n");document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t);}notify("전체 복사 완료");};
+
+  const panels=[
+    <div key={0}><Step1 boxes={boxes} setBoxes={b=>{setBoxes(b);mark(0);}} songMeta={songMeta} setSongMeta={setSongMeta}/><StepFooter stepIdx={0} done={done.has(0)} onToggle={toggleDone}/></div>,
+    <div key={1}><Step2 boxes={boxes} state={s2} onChange={upS2} apiKey={apiKey}/><StepFooter stepIdx={1} done={done.has(1)} onToggle={toggleDone}/></div>,
+    <div key={2}><Step3 boxes={boxes} step2={s2} state={s3} onChange={upS3} apiKey={apiKey}/><StepFooter stepIdx={2} done={done.has(2)} onToggle={toggleDone}/></div>,
+    <div key={3}><Step4 boxes={boxes} state={s4} onChange={upS4} s3={s3} songMeta={songMeta} apiKey={apiKey}/><StepFooter stepIdx={3} done={done.has(3)} onToggle={toggleDone}/></div>,
+  ];
+
+  return(<div style={S.root}>
+    <header style={S.header}>
+      <div style={S.logo}><span style={S.logoIcon}>◈</span><span style={S.logoText}>음악 프롬프트 생성 자동화</span></div>
+      <div style={S.hScroll}>
+        {msg&&<span style={{fontSize:11,color:"#5db87a",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{msg}</span>}
+        <button style={S.hBtn} onClick={handleExport}>JSON 내보내기</button>
+        <label style={{...S.hBtn,cursor:"pointer"}}>JSON 불러오기<input type="file" accept=".json" onChange={handleImport} style={{display:"none"}}/></label>
+        <div style={S.hDiv}/>
+        <button style={S.hBtn} onClick={handleReset}>↺ 초기화</button>
+        <button style={S.hBtn} onClick={handleCopyAll}>전체 복사</button>
+        <button style={apiKey?S.hBtnOn:S.hBtn} onClick={()=>setShowSettings(v=>!v)}>{apiKey?"⚙ 설정됨":"⚙ API키 설정"}</button>
+      </div>
+    </header>
+    <nav style={{display:"flex",overflowX:"auto",borderBottom:"1px solid "+C.border,background:C.surface,position:"sticky",top:52,zIndex:9}}>{STEP_LABELS.map((lbl,i)=>(<button key={i} style={active===i?S.tabOn:S.tab} onClick={()=>setActive(i)}><span style={S.tabNum}>{done.has(i)?"✓":"0"+(i+1)}</span><span style={S.tabLbl}>{lbl}</span></button>))}</nav>
+    <main style={S.main}>
+      {showSettings&&<SettingsPanel apiKey={apiKey} setApiKey={setApiKey} onClose={()=>setShowSettings(false)} onCopyAll={()=>{handleCopyAll();setShowSettings(false);}}/>}
+      {showJson&&(<div style={{...S.settingsCard,marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:12,fontWeight:700,color:C.gold}}>JSON — 아래 텍스트를 복사해 .json 파일로 저장하세요</span>
+          <div style={{display:"flex",gap:7}}><CopyBtn text={jsonText} label="복사"/><button style={S.removeBtn} onClick={()=>setShowJson(false)}>✕</button></div>
+        </div>
+        <textarea style={{...S.textarea,height:120,fontSize:11}} value={jsonText} readOnly/>
+      </div>)}
+      <div style={S.panelHead}><span style={S.panelNum}>STEP {active+1}</span><span style={S.panelTitle}>{STEP_LABELS[active]}</span></div>
+      {panels[active]}
+    </main>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
