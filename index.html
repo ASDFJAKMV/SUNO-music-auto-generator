@@ -172,7 +172,7 @@ const analyzeAudioFile=async(file)=>{
 
 const callClaude=async(prompt,sys,apiKey)=>{
   if(!apiKey||!apiKey.trim())throw new Error("API 키 미설정 — 우측 상단 ⚙ 버튼에서 Claude API 키를 입력해 주세요.");
-  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey.trim(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,system:sys||"You are a professional music producer and songwriter.",messages:[{role:"user",content:prompt}]})});
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey.trim(),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1500,system:sys||"You are a professional music producer and songwriter.",messages:[{role:"user",content:prompt}]})});
   const d=await res.json();if(!res.ok)throw new Error(d.error?d.error.message:"API error "+res.status);
   return d.content.map(b=>b.text||"").join("");
 };
