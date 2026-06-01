@@ -167,8 +167,8 @@ const getBoxStr=(b)=>{if(b.genre==='BGM'){const p=[];if(b.bgmUsage&&b.bgmUsage.l
 let _buid=0;
 const mkBlock=(t)=>({uid:"b"+(++_buid),type:t});
 const makeBox=(genre)=>({id:Math.random().toString(36).slice(2),genre:genre||"Jazz",subgenres:[],moods:[],rhythms:[],scale:"",timeSig:"4/4",customSub:"",customMood:"",customRhythm:"",bgmUsage:[],bgmAtmos:[],bgmStyles:[],bgmLength:"",bgmLoop:""});
-function makeInitBlocks(){return[mkBlock("Intro"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Bridge"),mkBlock("Outro")];}
-const initS3=()=>({langSlider:5,importance:1,lyrics:"",charLimit:1000,blocks:makeInitBlocks(),noLyrics:false,chorusRepeat:false,songKey:"",songBpm:""});
+function makeInitBlocks(){return[mkBlock("Intro"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Bridge"),mkBlock("Verse"),mkBlock("Pre-Chorus"),mkBlock("Bridge"),mkBlock("Outro")];}
+const initS3=()=>({langSlider:5,importance:1,lyrics:"",charLimit:1000,blocks:makeInitBlocks(),noLyrics:false,chorusRepeat:true,songKey:"",songBpm:""});
 const initS4=()=>({prompt:"",songLength:180,instruments:[],vocalLow:GAYO_CENTER,vocalLowEnabled:false,vocalHigh:GAYO_CENTER,vocalHighEnabled:false,refPromptText:"",refPromptExtracted:"",ytUrl:"",ytExtracted:""});
 
 const callClaude=async(prompt,sys,apiKey)=>{
